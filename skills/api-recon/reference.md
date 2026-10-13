@@ -1,6 +1,6 @@
 # api-recon — Reference manual
 
-Grep recipes, `config.json` templates and troubleshooting. All greps are performed against the `js/` directory. When bundling a single line, you can first use `js-beautify` or `sed 's/}/}\n/g'`, usually raw grep with a context window is sufficient.
+Grep recipes, `config.json` templates, and troubleshooting. Run the searches against the `js/` directory. For bundles minified onto one line, use `js-beautify` or `sed 's/}/}\n/g'` to make the output easier to read. Searching the original bundle with a context window is usually sufficient.
 
 ## Script description
 
@@ -8,19 +8,19 @@ All files in `scripts/` are **reference templates** and must be adjusted accordi
 
 | Script | Commonly needed adjustments |
 |---|---|
-| `harvest_static.py` | endpoint regular, webpack/Vite manifest parsing, micro frontend publicPath, retry/concurrency |
-| `runtime_harvest.js` | neutralize field name and success value, stub matching rules and body structure, routes source, WS recording, `waitUntil`/`routeTimeout`/`proxy` |
+| `harvest_static.py` | Endpoint regex, webpack/Vite manifest parsing, microfrontend publicPath, retries, and concurrency |
+| `runtime_harvest.js` | Response status fields and success values, stub matching rules and response structure, route sources, and WebSocket recording, `waitUntil`/`routeTimeout`/`proxy` |
 | `preload.js` | `loginPathRe`, L1 stubs, `neutralize.fields`, `apiPattern`, whether to enable L3, `recordDetail`, `observe.*`, `neutralizeVueRouter` |
 | `spider_mpa.py` | `--exclude` destructive links, cookies, depth/max, same domain filtering |
-| `extract_route_map.py` | `routeMap` / `routeLink` regular, KEY naming pattern |
+| `extract_route_map.py` | `routeMap` / `routeLink` regex and key naming patterns |
 | `build_perm_tree.py` | `userRouteAuth` parsing, `ROOTS`/`PREFIX_PARENT` hierarchical heuristics, stub outer field name |
-| `config.json` | A unified entrance to the exclusive parameters of all the above sites |
+| `config.json` | Central configuration for the site-specific settings used by these scripts |
 
-It is recommended that the adjusted file be placed in the task working directory (such as `recon/`), and the specific changes relative to the reference script will be noted in the report.
+Place the adapted scripts in the task working directory (for example, `recon/`) and document changes from the reference templates in the report.
 
 ---
 
-## A. Three reverse gates
+## A. Reverse engineer the three authentication gates
 
 ### A1. Rendering Gate — "How to determine if you are logged in?"
 
@@ -32,9 +32,9 @@ grep -rhoaE '(Cookies?|cookie)\.(get|load)\("[^"]+"\)' js | sort -u
 grep -rhoaE '\batob\(|JSON\.parse\(|jwt|decode' js | head
 ```
 
-Find the link `isLogin = f(getUser())` → `getUser = decode(storage.read(KEY))`, and determine the **storage key**, **container** (Cookie vs localStorage), and **encoding**:
+Trace `isLogin = f(getUser())` to `getUser = decode(storage.read(KEY))`. Identify the **storage key**, **storage location** (cookies or localStorage), and **encoding**:
 
-| Encoding | config forgery method |
+| Encoding | Mock configuration |
 |---|---|
 | plain text string / `"1"` / token | `"value": "anything-truthy"` |
 | `JSON.parse(x)` | `"value": "json:{\"id\":1,\"username\":\"admin\"}"` |
@@ -53,7 +53,7 @@ grep -rhoaE '.{0,40}(Not logged in | Please log in again | Login has expired | u
 grep -rhoaE '.{0,30}(location\.href|router\.(push|replace)|navigate)\([^)]*login[^)]*\)' js | head
 ```
 
-Determine: **field name**, **success value** (usually `0` or `200`), **failure value that triggers the jump**. Verify with junk session:
+Determine: **field name**, **success value** (usually `0` or `200`), **failure value that triggers the redirect**. Verify using an invalid session:
 
 ```bash
 curl -sk -X POST -H 'Cookie: <fakekey>=junk' https://target/api/<protected> -d '{}' -H 'Content-Type: application/json'
@@ -79,9 +79,9 @@ grep -rhoaE '([A-Z_][A-Z0-9_]*):\{name:"[^"]*",link:"/[^"]+"\}' js | head
 | bundle `userRouteAuth` | `{ CODE: { url, name? } }` | code → front-end path |
 | `routeMap` | `{ KEY: { name, link } }` in bundle | Alias resolution (webpack `o.DASHBOARD`) |
 
-Read consumer code confirmation: `getResultTree(tree, permissions)` How to filter, `v-if` / `hasAuth(code)` which field to check.
+Inspect the code that consumes these values: how `getResultTree(tree, permissions)` filters the tree, and which fields `v-if` or `hasAuth(code)` checks.
 
-**Manual forge** (small site): Build permissive payload → `stubs`.
+**Manual mock** (small site): Build a permissive response payload and add it to `stubs`.
 
 **Full permissions tree restoration** (large site, sidebar/submodules still blank): see **Section I**.
 
@@ -233,23 +233,23 @@ JSON.stringify({
 
 ## D. preload / runtime Hook capability
 
-Built-in browser Hook capabilities and coverage of preload (coverage) and runtime_harvest (depth):
+Browser hooks supported by preload (coverage mode) and runtime_harvest (depth mode):
 
 | Hook capabilities | Value for API discovery | Coverage |
 |---|---|---|
 | Hook fetch / XHR.open | Fetch request URL/method | ✅ `recordDetail` + `__API_RECON_LOG__` |
 | Hook XHR.setRequestHeader | Discover Authorization and other headers | ✅ `observe.xhrHeaders` |
 | Hook localStorage/cookie read | Confirm session key name | ⚠️ Optional `observe.storageReads/cookieReads` |
-| Vue gets routes | Complete frontendRoutes | ✅ `__API_RECON_ROUTES__` (route loaded) |
-| Vue route guard neutralization / login jump blocking | Open module trigger API | ✅ `neutralizeVueRouter` + native jump neutralization |
-| React gets route | Supplements route | ⚠️ Static + click; no dedicated Hook |
-| Page jump blocking (login path) | Leave page analysis | ⚠️ Only block the login path to avoid blocking business navigation |
-| Hook encryption library (CryptoJS/SM, etc.) | Encryption parameters → plain text API body | ❌ Parameters must be entered into the Hook encryption function manually; the conclusion is written in config |
+| Extract Vue routes | Complete the frontend route list | ✅ `__API_RECON_ROUTES__` (route loaded) |
+| Vue route guard neutralization / login jump blocking | Render modules to trigger API requests | ✅ `neutralizeVueRouter` + native jump neutralization |
+| Extract React routes | Supplement the route list | ⚠️ Static + click; no dedicated Hook |
+| Page jump blocking (login path) | Keep the page available for analysis | ⚠️ Only block the login path to avoid blocking business navigation |
+| Hook encryption library (CryptoJS/SM, etc.) | Inspect request parameters before encryption | ❌ Manually hook the encryption function and record the findings in the configuration |
 | Anti-debugging bypass | Otherwise, the runtime cannot record the API | ❌ Must be processed manually; static is still available |
 
 ---
 
-## E. Endpoint extracts regular rules (when there are too few statics)
+## E. Endpoint extraction patterns (when static results are sparse)
 
 Relax in `harvest_static.py`'s `extract_endpoints`, or manually:
 
@@ -264,37 +264,37 @@ grep -rhoaE '/api/[a-zA-Z0-9_./-]+' js | sort -u
 
 | Phenomenon | Cause → Solution |
 |---|---|
-| Little static API | endpoint dialect mismatch → relax regex (section D) |
+| Few static endpoints | Endpoint syntax mismatch → broaden the regex (Section E) |
 | Number of chunks ≪ manifest | CSS-only or chunk not deployed; 404 Retried |
 | The runtime still displays the login page | Rendering gate error → Review A1: key name, container, encoding, domain |
-| Enter the shell but the module is blank | Content door → forge menu (A3); `routes` path may be wrong |
+| Enter the shell but the module is blank | Content gate → mock the menu (A3); `routes` path may be wrong |
 | Each route only has bootstrap/locale | Incomplete permission code → Section I permission tree restoration; check `role_permissions` + `permissions/all` double stub |
 | There are items in the sidebar but the subpage is blank | The tree is missing the intermediate node or the code is inconsistent with `userRouteAuth` |
 | Each API jumps to login | Interceptor gate → Confirm `neutralize`; nested fields need to expand walk logic |
-| WS frame is 0 | User interaction is required before subscribe; lengthened `perRouteMs` |
+| No WebSocket frames | User interaction is required before subscribe; lengthened `perRouteMs` |
 | The response body is empty | Only `forward: true` has a real response |
 | Chromium is missing | Install chromium or set up `config.chromium` / `CHROMIUM` |
-| Mock many still log in | Hook too late or missing `location.href` setter → document-start + preload |
+| Login page persists despite mocks | Hook too late or missing `location.href` setter → document-start + preload |
 | The list is all empty | L3 empty array is normal; continue to click Tab/Settings/Details |
-| Mistake Redux action as route | Filter internal path containing get/set/change/clear/toggle/upload |
-| Vue still skips login | preload is not document-start → change the injection timing; or manually clear the guard at `neutralizeVueRouter: false` |
-| There is a URL in the response but not logged | Open `extractUrlsFromResponse`; or manually extract it from `__API_RECON_DETAIL__` |
-| Don’t know the Authorization header name | Open `observe.xhrHeaders` or DevTools to view the request header |
+| Redux actions mistaken for routes | Filter internal path containing get/set/change/clear/toggle/upload |
+| Vue still redirects to login | preload was not injected at document-start → change the injection timing; or manually clear the guard at `neutralizeVueRouter: false` |
+| There is a URL in the response but not logged | Enable `extractUrlsFromResponse`; or manually extract it from `__API_RECON_DETAIL__` |
+| Don’t know the Authorization header name | Enable `observe.xhrHeaders` or DevTools to view the request header |
 | runtime extremely slow / timeout | Change `waitUntil: domcontentloaded`; reduce `routeTimeout`; do not use `networkidle2` |
 | Agent connection failed | Check `proxy` / environment variable; Puppeteer and curl proxy ports are consistent |
 
 ---
 
-## G. hardened target
+## G. Hardened targets
 
-The runtime would get stuck at the shell while the server was gradually verifying the session (signed cookies that were not forgeable, menus that were server-rendered and not stubable). Expected behavior:
+Runtime analysis may stop at the application shell when the server validates the session at later stages, for example through signed cookies or server-rendered menus that cannot be stubbed. Expected limitations:
 
-- **static enough to do endpoint enumeration** — module path in code
+- **Static analysis can still enumerate endpoints** from module paths in the code
 - If authorization allows, run the same harness with **real session**: `forward: true`, no need to neutralize, capture real methods/params/responses
 
 ---
 
-## H. Single task list
+## H. Task checklist
 
 1. Confirm the scope of authorization
 2. **Read** `scripts/harvest_static.py` → Adjust to target → Run → Review `api_static.txt`, `routes.txt`
@@ -304,14 +304,14 @@ The runtime would get stuck at the shell while the server was gradually verifyin
 6. `runtimeMode=depth`: `npm install` → Run the adjusted harvest script
 7. `runtimeMode=coverage/both`: document-start injects adjusted preload → browser MCP dynamic enumeration + **parameter trigger matrix**
 8. The module does not render → **Section I permission tree restoration** → patch stubs → rerun
-9. Parameter multi-sample diff + error inversion → `params_merged.json`
+9. Parameter multi-sample diff + inference from error responses → `params_merged.json`
 10. Merge → `site_map.json` + `api_merged.txt`, honestly mark coverage, gaps and script changes
 
 ---
 
 ## I. Permission tree restoration (Phase 4 deepening)
 
-Used when forge simple `menus: [{ path, show: true }]` is invalid and the submodule is still not mounted.
+Use this when a simple mock such as `menus: [{ path, show: true }]` does not render the submodules.
 
 ### I1. Locate the auth module
 
@@ -387,7 +387,7 @@ node recon/runtime_harvest.js recon/config.json
 
 ## J. Parameter reverse engineering (Phase 1b/5b/5c)
 
-**Methodology, non-universal script. ** Use regular rules to find path; use anchor window expansion + UI binding chain + multi-sample diff + error inversion to find parameters.
+**Methodology rather than a universal script.** Find paths with regular expressions. Infer parameters by expanding the context around endpoint anchors, tracing UI bindings, comparing multiple samples, and inspecting error responses.
 
 ### J1. Anchor point window expansion — find package objects from path
 

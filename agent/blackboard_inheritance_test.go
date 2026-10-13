@@ -82,26 +82,31 @@ func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
 	if !ok {
 		t.Fatalf("coverage missing: %#v", overview["coverage"])
 	}
-	scopeRows, ok := coverage["scope"].([]map[string]any)
-	if !ok || len(scopeRows) != 1 {
-		t.Fatalf("task scope missing: %#v", coverage["scope"])
+	// The overview intentionally exposes compact metrics, not full scope rows.
+	if _, exists := coverage["scope"]; exists {
+		t.Fatal("compact overview unexpectedly includes full scope rows")
 	}
-	companyScope, ok := scopeRows[0]["company_scope"].([]map[string]any)
-	if !ok || len(companyScope) != len(inputs) {
-		t.Fatalf("company scope not expanded: %#v", scopeRows[0])
+	scopeRows, err := assets.ListTaskScope(task.ID)
+	if err != nil || len(scopeRows) != 1 || scopeRows[0].CompanyID == nil || *scopeRows[0].CompanyID != companyID {
+		t.Fatalf("associated company task scope: rows=%+v err=%v", scopeRows, err)
 	}
-	kinds := make(map[string]string, len(companyScope))
+	companyScope, err := companies.GetScope(companyID)
+	if err != nil || len(companyScope) != len(inputs) {
+		t.Fatalf("company scope: rows=%+v err=%v", companyScope, err)
+	}
+	kinds := make(map[string]db.ScopeRule, len(companyScope))
 	for _, rule := range companyScope {
-		kinds[fmt.Sprint(rule["kind"])] = fmt.Sprint(rule["value"])
+		kinds[rule.Kind] = rule
 	}
 	for _, input := range inputs {
-		if kinds[input.Kind] != input.Value {
-			t.Errorf("scope %s=%q want %q", input.Kind, kinds[input.Kind], input.Value)
+		want, err := db.ParseScopeInput(input)
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
-	keywords, ok := scopeRows[0]["company_keywords"].([]string)
-	if !ok || len(keywords) != 1 || keywords[0] != keyword {
-		t.Fatalf("company keywords missing: %#v", scopeRows[0]["company_keywords"])
+		got, exists := kinds[input.Kind]
+		if !exists || got.Domain != want.Domain || got.Net != want.Net || got.Value != want.Value {
+			t.Errorf("scope %s=%+v want %+v", input.Kind, got, want)
+		}
 	}
 	if hc, _ := coverage["host_count"].(int); hc < 1 {
 		t.Fatalf("company asset host not counted in agent context: %#v", coverage["host_count"])

@@ -27,9 +27,9 @@ func nudgeAt(t *testing.T, tokenCount, t1Tokens int, mutate func(*CompressionSta
 
 func TestResolveAdaptiveGrowth(t *testing.T) {
 	n := DefaultConfig(200000).Nudge
-	// min(50000, max(50000, round(200000*0.05)=10000)) = 50000
-	if got := resolveAdaptiveGrowth(200000, n); got != 50000 {
-		t.Fatalf("adaptive growth for a 200k window = %d, want 50000", got)
+	// min(50000, max(2000, round(200000*0.05))) = 10000
+	if got := resolveAdaptiveGrowth(200000, n); got != 10000 {
+		t.Fatalf("adaptive growth for a 200k window = %d, want 10000", got)
 	}
 	if got := resolveAdaptiveGrowth(0, n); got != n.GrowthFloor {
 		t.Fatalf("adaptive growth with no limit = %d, want the floor", got)
@@ -47,11 +47,11 @@ func TestGrowthFloor(t *testing.T) {
 // Below the cadence gate the nudge stays quiet, however much is compressible.
 func TestNudgeHoldsBelowCadence(t *testing.T) {
 	d := nudgeAt(t, 100000, 60000, func(st *CompressionState, _ *Config) {
-		st.Nudge.LastNudgeShownTokens = 95000 // grew only 5000
-		st.Nudge.LastPerMessageNudgeTokens = 95000
+		st.Nudge.LastNudgeShownTokens = 99000 // grew only 1000
+		st.Nudge.LastPerMessageNudgeTokens = 99000
 	})
 	if d.ShouldInject {
-		t.Fatalf("injected despite growing only 5000 of 22500: %s", d.Reason)
+		t.Fatalf("injected despite growing only 1000 of 4500: %s", d.Reason)
 	}
 	if !strings.Contains(d.Reason, "below cadence") {
 		t.Fatalf("reason = %q, want it to name the cadence gate", d.Reason)
@@ -75,7 +75,7 @@ func TestNudgeHoldsWhenBacklogTooSmall(t *testing.T) {
 		st.Nudge.LastPerMessageNudgeTokens = 90000
 	})
 	if d.ShouldInject {
-		t.Fatalf("injected with only 5000 pending against a 50000 threshold: %s", d.Reason)
+		t.Fatalf("injected with only 5000 pending against a 10000 threshold: %s", d.Reason)
 	}
 }
 
@@ -93,6 +93,29 @@ func TestNudgeFirstSightNeedsUsageFloor(t *testing.T) {
 	d := nudgeAt(t, 80000, 60000, nil)
 	if d.ShouldInject {
 		t.Fatalf("first sight below the usage floor must not inject: %s", d.Reason)
+	}
+}
+
+func TestNudgeGrowthNeedsUsageFloor(t *testing.T) {
+	d := nudgeAt(t, 80_000, 60_000, func(st *CompressionState, _ *Config) {
+		st.Nudge.LastNudgeShownTokens = 20_000
+		st.Nudge.LastPerMessageNudgeTokens = 20_000
+	})
+	if d.ShouldInject {
+		t.Fatalf("growth below the usage floor must not inject: %s", d.Reason)
+	}
+}
+
+func TestNudgeConsolidatesBeforeGrowingRawBacklog(t *testing.T) {
+	d := nudgeAt(t, 120_000, 60_000, func(st *CompressionState, _ *Config) {
+		for i := range 5 {
+			b := block("b"+string(rune('1'+i)), 1, "gone")
+			b.Summary = strings.Repeat("summary text ", 40)
+			st.Blocks = append(st.Blocks, b)
+		}
+	})
+	if !d.ShouldInject || d.Tier != 2 {
+		t.Fatalf("ready summaries must not be starved by raw backlog: %+v", d)
 	}
 }
 

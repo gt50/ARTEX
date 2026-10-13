@@ -18,7 +18,7 @@ func TestDefaultConfigMatchesSpec(t *testing.T) {
 		{"MaxContextLimitPct", c.Nudge.MaxContextLimitPct, 0.75},
 		{"MinContextLimitPct", c.Nudge.MinContextLimitPct, 0.45},
 		{"EmergencyThresholdPct", c.Nudge.EmergencyThresholdPct, 0.95},
-		{"GrowthFloor", c.Nudge.GrowthFloor, 50000},
+		{"GrowthFloor", c.Nudge.GrowthFloor, 2000},
 		{"GrowthCap", c.Nudge.GrowthCap, 50000},
 		{"MinGrowthFloor", c.Nudge.MinGrowthFloor, 20000},
 		{"MinGrowthRatio", c.Nudge.MinGrowthRatio, 0.45},
@@ -41,6 +41,16 @@ func TestDefaultConfigMatchesSpec(t *testing.T) {
 func TestValidateConfigAcceptsDefaults(t *testing.T) {
 	if w := ValidateConfig(DefaultConfig(200000)); len(w) != 0 {
 		t.Fatalf("ValidateConfig(defaults) = %v, want no warnings", w)
+	}
+}
+
+func TestDefaultCadenceScalesWithWindow(t *testing.T) {
+	for _, tc := range []struct{ window, floor int }{
+		{40_000, 4_000}, {128_000, 12_800}, {200_000, 20_000}, {400_000, 20_000},
+	} {
+		if got := DefaultConfig(tc.window).Nudge.MinGrowthFloor; got != tc.floor {
+			t.Errorf("window %d: cadence floor=%d, want %d", tc.window, got, tc.floor)
+		}
 	}
 }
 

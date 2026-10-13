@@ -189,6 +189,7 @@
   }
 
   //--- Mock Auxiliary ---
+  // Chinese response markers mean not logged in, unauthorized, and authorization.
   const NEGATIVE_RE = /未登录|未授权|授权|not\s*login|unauthorized|forbidden/i;
   const tier = CONFIG.mockTier || 'L1+L2';
 

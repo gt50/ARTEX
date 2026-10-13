@@ -1,36 +1,36 @@
 ---
 name: api-recon
-description: This skill is called when collecting website API interfaces.
+description: Discover website API endpoints, parameters, routes, and UI actions.
 ---
 
-# API Recon (front-end interface reconnaissance)
+# API Recon (frontend API reconnaissance)
 
-Under the premise of **authorization**, discover as completely as possible: **back-end API** (path, method, parameter, response body), **front-end routing**, **UI function trigger point** (Tab, pop-up window, table operation, etc.).
+Within the **authorized scope**, discover **backend APIs** (paths, methods, parameters, and response bodies), **frontend routes**, and **UI actions that trigger requests** (tabs, dialogs, table actions, and similar controls).
 
 ---
 
-## Boundaries and Prohibitions (A must-read for Agent · Violation means crossing the boundary)
+## Required scope limits
 
-This skill **only performs API/parameter reconnaissance**, not the vulnerability mining or penetration phase.
+This skill covers **API and parameter reconnaissance only**. Vulnerability discovery and penetration testing are outside its scope.
 
 ### Task Boundary
 
 | Scope | Allowed | Disallowed |
 |---|---|---|
-| **Target** | Enumerate path, method, parameters, routing, UI trigger points | SQLi/XSS/violation/explosion/fuzz vulnerabilities, package modification attacks, destructive operations |
-| **Authentication** | Hook + stub/mock bypasses the **client** login door | Ask the user or guess the account password; try to submit the real login form |
-| **Runtime** | Hook interface without credentials, use mock response to let SPA enter the post-login shell | Process that relies on real backend session to continue |
+| **Target** | Enumerate paths, methods, parameters, routes, and UI actions | SQL injection, XSS, authorization bypass, brute force, vulnerability fuzzing, request tampering attacks, and destructive operations |
+| **Authentication** | Hooks and stubs/mocks bypass the **client-side** login gate | Request credentials from the user, guess passwords, or submit a real login form |
+| **Runtime** | Hook interface without credentials, use mock response to let SPA enter the post-login shell | Workflows that require a real backend session |
 
 ### Credentialless dynamic analysis (Phase 3 default)
 
-1. Use `preload.js` / `runtime_harvest.js` **interception and stub** login, permissions, menus and other bootstrap interfaces;
-2. Return a mock body with correct structure, successful business code, and empty data to the business query interface;
-3. Enable the front-end to still render the post-login page without back-end or 401 environment, thus triggering more XHR/fetch/WebSocket;
+1. Use `preload.js` / `runtime_harvest.js` to **intercept and stub** login, permission, menu, and other bootstrap endpoints;
+2. Return structurally valid mock responses with successful application status codes and empty data for application queries;
+3. Allow the frontend to render authenticated pages even when the backend is unavailable or returns 401, exposing additional XHR, fetch, and WebSocket requests;
 4. **Empty data, blank tables, and placeholder UI are expected** – do not turn to real login or vulnerability testing for this.
 
-**One sentence**: Use mocks to support front-end routing and component mounting, and **only record outbound requests**; it doesn't matter what the backend returns, what matters is what interfaces the front-end **will send**.
+Use mocks to enable frontend routing and component mounting, then **record outbound requests only**. The goal is to discover which requests the frontend can send.
 
-### Process hard ban
+### Workflow restrictions
 
 | Prohibited | Alternatives |
 |---|---|
@@ -43,16 +43,16 @@ This skill **only performs API/parameter reconnaissance**, not the vulnerability
 | Irreversible operations such as deleting, exporting sensitive data, and batch writing | The same applies to coverage clicks |
 | Unfinished runtime + dynamic enumeration, claiming to have obtained all pages and interfaces | See "Complete Definition" or mark limitations |
 | Unfinished parameter trigger matrix + diff, claiming to have mastered all parameters | Phase 3b matrix + Phase 5 diff |
-| Required/optional inference from a single runtime sample | Multi-sample diff or validation rules/error inversion |
+| Required/optional inference from a single runtime sample | Multi-sample diff or validation rules/inference from error responses |
 
 ---
 
-## Two-layer model + running mode
+## Analysis layers and operating modes
 
 | Layer | Output | Upper Limit |
 |---|---|---|
-| **static** (JS bundle) | Full endpoint path, route draft, package point field candidate | No HTTP method; parameters must be Phase 1b; runtime splicing URL is missing |
-| **Runtime** (live session) | Method + body + response + dynamic URL + WS/SSE; multi-sample diff completion parameters | The page must be actually rendered before the request is made; a single sample is not enough to determine required/optional |
+| **static** (JS bundle) | Endpoint paths, candidate routes, and candidate request fields | HTTP methods are unavailable; infer parameters in Phase 1b; dynamically constructed URLs may be missing |
+| **Runtime** (live session) | Methods, request bodies, responses, dynamic URLs, and WS/SSE; compare multiple samples to complete parameter coverage | The page must be actually rendered before the request is made; a single sample is not enough to determine required/optional |
 
 | Operating Mode | Engine | Applicable |
 |---|---|---|
@@ -60,40 +60,40 @@ This skill **only performs API/parameter reconnaissance**, not the vulnerability
 | **coverage** | browser + `preload.js` | Click Tab/pop-up window/table to get deeper coverage of function points |
 | **both** | Depth first and then coverage | The most complete and the longest time |
 
-**Parameter methodology** (no universal script): use harvest/regular for path; use **anchor point window expansion + UI binding chain + multi-sample diff + error inversion** for parameters (see [reference.md](reference.md) Section J for the grep recipe).
+**Parameter methodology** (no universal script): use the harvest script and regular expressions to discover paths; use **context expansion around endpoint anchors + UI binding chain + multi-sample diff + inference from error responses** for parameters (see [reference.md](reference.md), Section J, for grep recipes).
 
 ---
 
-## Complete definition
+## Completion criteria
 
-Only when all are satisfied can recon be declared complete:
+Reconnaissance is complete only when all applicable criteria are satisfied:
 
 - [ ] **static**: Phase 1 harvest output `api_static.txt`, `routes.txt`, `js/`
-- [ ] **Runtime**: at least one of depth or coverage; coverage/both must be **Hook effective + dynamic enumeration ring**
+- [ ] **Runtime**: at least one of depth or coverage; coverage/both must be **working hooks and a completed dynamic enumeration loop**
 - [ ] **Enter shell**: When accessing the business path, it is not `/login` (note the hash routing)
-- [ ] **Parameters**: coverage/both completion parameter trigger matrix + `param_samples.json`; Phase 5 merge `params_merged.json`
+- [ ] **Parameters**: coverage/both completes the parameter trigger matrix + `param_samples.json`; Phase 5 merge `params_merged.json`
 - [ ] **Depth** (if the module page is blank): Phase 4 permission tree is restored and re-run until the **module-level API** appears (not just locale/bootstrap)
 - [ ] **Delivery**: Phase 5 output complete (see Phase 5 output table); `insert_assets` writes service and endpoint assets
 
 ---
 
-## Scripts and Access Control
+## Scripts and review gates
 
 `scripts/` is only a reference template. It is **not allowed** to run the original version directly and use it as the final result.
 
 **Rules**: Read first → change according to the target → write `OUTDIR` (such as `recon/`) → record `CHANGES.md`; if not matched, rewrite according to the methodology and only borrow the structure.
 
-| Access Control | When | Reference Script → OUTDIR Copy | Common Required Changes |
+| Review gate | When | Reference Script → OUTDIR Copy | Common Required Changes |
 |---|---|---|---|
-| **A (static)** | After Phase 0, **before running harvest/spider for the first time** | `harvest_static.py` / `spider_mpa.py` | **Most sites default regex can be run directly**; only change the endpoint regularity, webpack/Vite `publicPath`, MPA exclude/cookie when the manifest/dialect does not match |
-| **B (runtime)** | After Phase 2, before running depth/coverage | `runtime_harvest.js` / `preload.js` + `config.json` | Cookie/localStorage key, neutralize success value, stubs, login regular, api prefix, hash/history |
+| **A (static)** | After Phase 0, **before running harvest/spider for the first time** | `harvest_static.py` / `spider_mpa.py` | **The default regex works for most sites**; only change the endpoint patterns, webpack/Vite `publicPath`, MPA exclude/cookie when the manifest/dialect does not match |
+| **B (runtime)** | After Phase 2, before running depth/coverage | `runtime_harvest.js` / `preload.js` + `config.json` | Cookie/localStorage keys, success status values, stubs, login patterns, API prefixes, and hash/history routing |
 
 **SPA forced order** (not interchangeable; Phase number takes precedence over "explore first then script"):
 
 | Steps | Required | Prohibited |
 |---|---|---|
 | After Phase 0 is completed | Next entry Bash = `python3 OUTDIR/harvest_static.py <URL> OUTDIR` | curl/grep/Read main entry `index-*.js` (usually >500KB) |
-| Access Control A | Copy the script → Make minor changes as needed → **Run immediately** | Manually extract the API first and then decide whether to harvest |
+| Review gate A | Copy the script → Make minor changes as needed → **Run immediately** | Manually extract the API first and then decide whether to harvest |
 | Before Phase 1 is completed | `wc -l` verification output; 404 change harvest and try again | Handwritten extract script; grep repeatedly for undownloaded URLs |
 | Phase 1b onwards | grep `OUTDIR/js/*.js` only | use main bundle instead of harvest |
 
@@ -119,24 +119,24 @@ Only when all are satisfied can recon be declared complete:
 
 ```
 Phase 0 Classification + OUTDIR
-→ Access Control A → Phase 1 (★ run immediately ★ harvest)
-→ Phase 1b parameter inversion
-→ Phase 2 Authentication Three Doors → config.json
-→ Access Control B → Phase 3 Runtime + Parameter Matrix
+→ Review gate A → Phase 1 (★ run immediately ★ harvest)
+→ Phase 1b parameter inference
+→ Phase 2 Authentication gates → config.json
+→ Review gate B → Phase 3 Runtime + Parameter Matrix
 → Phase 4 permission tree (if necessary) → Rerun Phase 3
 → Phase 5 merged report + insert_assets batch inserts all discovered services and endpoint api assets. No missing assets are allowed when inserting in any case.
 ```
 
 Check in order; **Do not enter the next phase until the previous item is completed**.
 
-1. [ ] **Phase 0**: Preliminary exploration of SPA/MPA; create `OUTDIR` → [Phase 0](#phase-0--Classification)
-2. [ ] **Access Control A + Phase 1**: Copy script → **immediately** harvest → `wc -l` verification → [Phase 1](#phase-1--static)
-3. [ ] **Phase 1b**: Anchor point window expansion + binding layer → `param_candidates.json` → [Phase 1b](#phase-1b--Parameter inversion)
-4. [ ] **Phase 2**: Three doors for authentication → `config.json` → [Phase 2](#phase-2--Three doors of authentication)
-5. [ ] **Access Control B**: Adjust runtime script → [Phase 3](#phase-3--runtime)
+1. [ ] **Phase 0**: Preliminary exploration of SPA/MPA; create `OUTDIR` → [Phase 0](#phase-0--classification)
+2. [ ] **Review gate A + Phase 1**: Copy script → **immediately** harvest → `wc -l` verification → [Phase 1](#phase-1--static)
+3. [ ] **Phase 1b**: Expand the context window around endpoint anchors + binding layer → `param_candidates.json` → [Phase 1b](#phase-1b--parameter-inference)
+4. [ ] **Phase 2**: Authentication gates → `config.json` → [Phase 2](#phase-2--authentication-gates)
+5. [ ] **Review gate B**: Adjust runtime script → [Phase 3](#phase-3--runtime)
 6. [ ] **Phase 3**: depth / coverage / both; confirm entry into the shell; parameter trigger matrix → `param_samples.json`
-7. [ ] **Phase 4** (if necessary): permission tree → patch stubs → rerun Phase 3 → [Phase 4](#phase-4--Permission tree restoration)
-8. [ ] **Phase 5**: Combine output + report + `insert_assets` → [Phase 5](#phase-5--Consolidation and reporting)
+7. [ ] **Phase 4** (if necessary): permission tree → patch stubs → rerun Phase 3 → [Phase 4](#phase-4--permission-tree-restoration)
+8. [ ] **Phase 5**: Combine output + report + `insert_assets` → [Phase 5](#phase-5--consolidation-and-reporting)
 
 ---
 
@@ -157,7 +157,7 @@ Output `forms.txt`, `links.txt`, `api_inline.txt`. SPA if forms ≈ 0 → switch
 
 ## Phase 1 — Static
 
-Observe [Scripts and Access Control](#Scripts and Access Control) · [Tools and output constraints](#Tools and output constraints).
+Observe [Scripts and review gates](#scripts-and-review-gates) · [Tools and output constraints](#tools-and-output-constraints).
 
 ```bash
 python3 recon/harvest_static.py <BASE_URL> <OUTDIR>
@@ -171,11 +171,11 @@ ls OUTDIR/js | wc -l
 ```
 
 - Number of chunks vs manifest: 404 needs to be changed to harvest and try again. Do not manually curl chunks one by one.
-- `api_static.txt` is too few → relax the endpoint regularity in OUTDIR and rerun (see reference)
+- `api_static.txt` is too few → relax the endpoint patterns in OUTDIR and rerun (see reference)
 
-### Phase 1b — Parameter Reverse
+### Phase 1b — Parameter inference
 
-path is from Phase 1; parameter fields must be reconnoited separately. See [Tools and output constraints](#Tools and output constraints) for grep rules.
+Paths come from Phase 1; discover parameter fields separately. See [Tools and output constraints](#tools-and-output-constraints) for grep rules.
 
 **Completion Standard**: Important interfaces can be answered - field name, transmission location, type inference, whether it is required, sample value, confidence level.
 
@@ -192,7 +192,7 @@ path is from Phase 1; parameter fields must be reconnoited separately. See [Tool
 
 Output: Each interface is labeled `transport: query|json|form|graphql|encrypted`.
 
-#### 1b.1 — Anchor point window expansion
+#### 1b.1 — Expand the context window around endpoint anchors
 
 Using the known path as the anchor, expand the window to find the package object:
 
@@ -228,37 +228,37 @@ Form field → onFinish/handleSubmit → transform → API payload
 | Interceptor | Global `tenantId`, paging, sign |
 | enumeration select | `options` → API enumeration value |
 
-DevTools call stack chases the package function from `fetch`/`XHR.send` up.
+Use the DevTools call stack to trace request construction back from `fetch` or `XHR.send`.
 
-#### 1b.3 — Three questions for package grouping (≠ Phase 2 three authentication gates)
+#### 1b.3 — Request construction questions
 
 | Question | What to answer |
 |---|---|
-| **Assembly** | Where is the payload build and transform traces |
-| **Check** | required, pattern, enum |
+| **Assembly** | Where is the payload constructed, and how is it transformed? |
+| **Validation** | Required fields, patterns, and allowed values |
 | **transport** | path/query/body/multipart/header |
 
 The interceptor gate (Phase 2) incidentally reads the global injection fields (Authorization, `X-Tenant-Id`, sign).
 
 #### 1b.4 — Connecting with Phase 3
 
-Candidate fields come from static/binding layers; **required/optional/conditional dependencies** require Phase 3 parameter matrix + diff + Phase 5 error inversion.
+Candidate fields come from static/binding layers; **required/optional/conditional dependencies** require Phase 3 parameter matrix + diff + Phase 5 inference from error responses.
 
 ---
 
-## Phase 2 — Three doors of authentication
+## Phase 2 — Authentication gates
 
 In `OUTDIR/js/` grep (with `head`), write `config.json` (see reference for the recipe):
 
-| Door | Question | Keywords |
+| Gate | Question | Keywords |
 |---|---|---|
-| **Rendering Door** | How to tell if you are logged in? | `isLogin`, `getToken`, Cookie/localStorage |
-| **Interceptor Gate** | What triggers jump `/login`? | `response_code`, `errno`, axios interceptor |
+| **Rendering Gate** | How to tell if you are logged in? | `isLogin`, `getToken`, Cookie/localStorage |
+| **Interceptor Gate** | What triggers a redirect to `/login`? | `response_code`, `errno`, axios interceptor |
 | **Content Gate** | Where do menus/permissions come from? | `menu`, `permission`, `role`, `acl`, `routes` |
 
-Do not use localStorage keys as credentials - must be confirmed from the chunk/request chain.
+Confirm storage key names by tracing the bundle and request code; a localStorage key name alone does not establish how authentication works.
 
-**Exit = Access Control B**: Conclusion falls to `config.json`, and changed to `OUTDIR/runtime_harvest.js` / `preload.js`.
+**Exit = Review gate B**: Conclusion falls to `config.json`, and changed to `OUTDIR/runtime_harvest.js` / `preload.js`.
 
 ### Phase 2b — API Observation (optional)
 
@@ -278,7 +278,7 @@ Coverage is exported in each round: `__API_RECON_LOG__`, `__API_RECON_DETAIL__`,
 
 ## Phase 3 — Runtime
 
-Must have passed gate B; comply with the [borders and prohibitions](#borders and prohibitionsagent-Must read--Violation means crossing the line) · No credential mock policy.
+Complete review gate B and follow the [required scope limits](#required-scope-limits), including the credentialless mock policy.
 
 `config.json` sets `"runtimeMode": "depth" | "coverage" | "both"` (see reference for template).
 
@@ -333,7 +333,7 @@ node runtime_harvest.js config.json
 
 | Phenomenon | Meaning |
 |---|---|
-| Entering the shell successfully | Rendering door + interceptor door passed |
+| Entering the shell successfully | Rendering and interceptor gates passed |
 | Sidebar missing items/clicks are blank | stub shape or incomplete permission code |
 | Each route API is the same and minimal | `v-if permission` failed |
 | `routes.txt` is much smaller than bundle | Must be completed from auth module |
@@ -366,22 +366,22 @@ Stub check: outer `response_code` is consistent with the interceptor gate; flat 
 |---|---|---|
 | `js/`, `api_static.txt`, `routes.txt`, `chunkmap.txt` | 1 | static bundle and path |
 | `param_candidates.json` | 1b | Static parameter field candidate |
-| `config.json` | 2 | Three doors + runtime configuration |
+| `config.json` | 2 | Authentication gates and runtime configuration |
 | `runtime_api.json` | 3a | depth detailed recording (including WS/SSE) |
 | `param_samples.json`, `scan_raw.json`, `api_detail.json` | 3b | Multiple samples, click logs, detail |
 | `route_map.json`, etc. | 4 | Permission tree intermediate file (if executed) |
 | `params_merged.json` | 5 | Merge parameter fields + confidence |
 | `api_merged.txt` | 5 | `METHOD /path [params] [static\|runtime\|both]` |
 | `site_map.json` | 5 | Routing, API, params, function points, limitations |
-| **insert_assets** | 5 | Write all service and endpoint assets into the asset library |
+| **insert_assets** | 5 | Record all service and endpoint assets in the asset inventory |
 
 ### 5b — Parameter merging
 
-From `param_samples.json` diff, **No generic merge script**. See reference J7 for confidence rules (high/medium/low/pending).
+Compare the samples in `param_samples.json`; there is **no universal merge script**. See reference Section J7 for confidence levels (high, medium, low, and pending).
 
-### 5c — Error Reverse
+### 5c — Infer parameters from error responses
 
-Incomplete requests can be sent within the authorization scope to read 400 (** parameter recon, non-vulnerability test**): `field 'x' is required`, enumeration error, etc. Note the `data` wrapper, `variables`, and `bizData` before encryption.
+Within the authorized scope, send incomplete requests and inspect HTTP 400 responses for messages such as `field 'x' is required` or invalid enumeration values. This is **parameter reconnaissance**. Account for wrappers such as `data` and `variables`, and for `bizData` before encryption.
 
 Reports must note: runtimeMode, static/runtime API count, parameter confidence, uncovered modules, `CHANGES.md` summary relative to the reference script.
 
@@ -422,4 +422,4 @@ See [reference.md](reference.md) for more fields and grep recipes.
 ## Additional resources
 
 - Grep recipe, `config.json` template, troubleshooting, Hook, parameter reverse J section, site_map template: **[reference.md](reference.md)**
-- See the [Scripts and Access Control](#Scripts and Access Control) table for the reference script path
+- See the [Scripts and review gates](#scripts-and-review-gates) table for the reference script path

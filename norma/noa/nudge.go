@@ -165,12 +165,6 @@ func decideGrowth(d *NudgeDecision, in DecideNudgeInput, tiers map[Tier]tierPend
 	t2CountReady := tiers[2].count >= cfg.Tiers.Tier2Trigger && d.ContextUsage >= usageFloor
 	t3CountReady := tiers[3].count >= cfg.Tiers.Tier3Trigger && d.ContextUsage >= usageFloor
 
-	if tiers[1].pending >= adaptive {
-		d.ShouldInject = true
-		d.Tier = 1
-		d.Reason = fmt.Sprintf("growth: tier 1 has %d pending (>= %d); %s", tiers[1].pending, adaptive, pendingSummary(tiers))
-		return
-	}
 	if cfg.Tiers.Enabled {
 		if t2CountReady || (tiers[2].pending >= tier2Threshold && tiers[2].pending > tiers[1].pending) {
 			if tierCadenceReady(in.State, 2, in.TokenCount, floor) {
@@ -197,6 +191,12 @@ func decideGrowth(d *NudgeDecision, in DecideNudgeInput, tiers map[Tier]tierPend
 			d.Reason = "blocked: T3 (cadence); " + pendingSummary(tiers)
 			return
 		}
+	}
+	if tiers[1].pending >= adaptive && d.ContextUsage >= usageFloor {
+		d.ShouldInject = true
+		d.Tier = 1
+		d.Reason = fmt.Sprintf("growth: tier 1 has %d pending (>= %d); %s", tiers[1].pending, adaptive, pendingSummary(tiers))
+		return
 	}
 	d.Reason = "growth ready but no tier qualifies; " + pendingSummary(tiers)
 }

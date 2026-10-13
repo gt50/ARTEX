@@ -271,7 +271,10 @@ export const api = {
       company_ids: input.companyIds ?? [],
       timeout_seconds: input.timeoutSeconds ?? 0,
       seed_first_intent: input.seedFirstIntent ?? false,
-      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = backend normalized to default 600 (10min)      coverage_enabled: input.coverageEnabled ?? true, // enabled by default; false=disable asset coverage function      intercept_rules: input.interceptRules ?? [], // Task-level asset interception rules    }),
+      plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // Zero uses the backend default of 600 seconds.
+      coverage_enabled: input.coverageEnabled ?? true, // Asset coverage is enabled by default.
+      intercept_rules: input.interceptRules ?? [], // Task-level asset interception rules.
+    }),
   taskCategories: () => get<{ categories: TaskCategory[] }>("/task-categories").then((r) => arr(r.categories)),
   updateTask: (id: string, input: { name?: string; pinned?: boolean }) => patch<Task>(`/tasks/${id}`, input),
   renameTask: (id: string, name: string) => patch<Task>(`/tasks/${id}`, { name }),
@@ -366,7 +369,8 @@ export const api = {
   //Asset test coverage (rough estimate, for reference): the proportion of assets in the scope that have been touched by fact + the total number by type/tested.
   taskCoverage: (id: string) =>
     get<{
-      enabled: boolean; // Whether the asset coverage function is enabled; when false, the remaining fields are zero.      scope_rows: number;
+      enabled: boolean; // Other coverage fields are zero when disabled.
+      scope_rows: number;
       denominator: number;
       tested: number;
       pct: number | null;
@@ -935,7 +939,9 @@ export const api = {
     thinking_type = "",
     reasoning_effort = "",
     profile_id?: number,
-    streaming = true, // Use the real sending and receiving mode of this configuration to test, and don't let "streaming pass, non-streaming fail" leak into the session    session_header_key = "", // Non-empty = the test request also carries the custom session header (the value is a one-time session id)  ) =>
+    streaming = true, // Test the configured streaming mode before using it in a conversation.
+    session_header_key = "", // Include this custom header with a one-time session ID when set.
+  ) =>
     //reply = the actual reply of the model (truncated); the configuration backend that does not reply with a word will directly fail.
     post<{ ok: boolean; error?: string; latency_ms?: number; model?: string; reply?: string }>("/llm/test", {
       provider,
@@ -961,7 +967,16 @@ export const api = {
     rate_per_second?: number;
     rate_per_minute?: number;
     context_window_k?: number;
-    thinking_type?: string; // ""(do not send)|"disabled"|"enabled"    reasoning_effort?: string; // ""(do not send)|"low"|"medium"|"high"|"xhigh"|"max"    priority?: number; // Polling order, the larger the value, the higher it is used first    pool_exclude?: boolean; // true=not a failover target    streaming?: boolean; // true (default) = streaming | false = non-streaming    max_tokens?: number; //The upper limit of single reply output; 0=do not send, determined by the server default value    max_tokens_field?: string; // ""=max_tokens (default) | "max_completion_tokens" (openai format only)    session_header_key?: string; // Non-null = each request carries the HTTP header, header value = current session session id; "" = not sent    retry?: LLMRetryOverride; // Retry override of this configuration; each item is left 0 = follow the global retry policy  }) => post<{ id: number }>("/llm/profiles", p),
+    thinking_type?: string; // Empty omits the field; otherwise disabled or enabled.
+    reasoning_effort?: string; // Empty omits the field; otherwise low, medium, high, xhigh, or max.
+    priority?: number; // Higher values are tried first in the provider pool.
+    pool_exclude?: boolean; // Exclude this profile from failover when true.
+    streaming?: boolean; // True (default) streams; false returns a complete response.
+    max_tokens?: number; // Per-reply output limit; zero uses the provider default.
+    max_tokens_field?: string; // Empty uses max_tokens; max_completion_tokens is for OpenAI format.
+    session_header_key?: string; // Custom header carrying the current session ID; empty omits it.
+    retry?: LLMRetryOverride; // Zero values inherit the global retry policy.
+  }) => post<{ id: number }>("/llm/profiles", p),
   deleteLLMProfile: (id: string) => del<{ deleted: number }>(`/llm/profiles/${id}`),
   activateLLMProfile: (id: string) => post<{ ok: boolean }>("/llm/profiles/active", { id: Number(id) }),
   //Actual sequence of polling chain + circuit break status for each configuration.
@@ -1048,7 +1063,8 @@ export const api = {
   saveAgentConfig: (
     key: string,
     patch: {
-      llm_profile_id?: number | null; // number=bind; null=unbind (follow task/global); default=do not move      max_turns?: number;
+      llm_profile_id?: number | null; // Number binds; null inherits the task/global setting; omitted leaves it unchanged.
+      max_turns?: number;
       run_seconds?: number;
       web_search?: boolean;
       interactive_shell?: boolean;

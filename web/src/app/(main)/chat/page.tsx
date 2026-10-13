@@ -59,6 +59,7 @@ import { shouldSubmitOnKey, useChatSendMode } from "@/lib/chat-send-mode";
 import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.client";
 import { isBtwCommand } from "@/lib/side-questions";
 import type { Activity, Agent, ChatAttachment, Conversation, LLMProfile } from "@/lib/types";
+import { englishSystemLabel } from "@/lib/legacy-system-labels.mjs";
 import { cn } from "@/lib/utils";
 
 // fmtBytes renders a human file size for attachment chips (mirrors transcript.tsx).
@@ -897,7 +898,7 @@ const ConversationItem = React.memo(function ConversationItem({
         <Checkbox
           checked={selectedForDelete}
           onCheckedChange={(checked) => onSelectedForDeleteChange(conv.id, checked === true)}
-          aria-label={`Select conversation "${conv.title || "New conversation"}"`}
+          aria-label={`Select conversation "${englishSystemLabel(conv.title || "New conversation")}"`}
           className="ml-1 shrink-0"
         />
       )}
@@ -929,7 +930,7 @@ const ConversationItem = React.memo(function ConversationItem({
         >
           <div className="flex min-w-0 items-center gap-1.5">
             {pinned && <PinIcon className="text-primary size-3 shrink-0" aria-label="Pinned" />}
-            <div className="truncate text-sm">{conv.title || "New conversation"}</div>
+            <div className="truncate text-sm">{englishSystemLabel(conv.title || "New conversation")}</div>
             {conv.running ? (
               <Badge variant="secondary" className="shrink-0 gap-1" title="Agent is running">
                 <Spinner className="size-3" aria-hidden="true" />
@@ -963,7 +964,7 @@ const ConversationItem = React.memo(function ConversationItem({
             variant="ghost"
             size="icon-sm"
             className="text-muted-foreground shrink-0"
-            aria-label={`Manage conversation "${conv.title || "New conversation"}"`}
+            aria-label={`Manage conversation "${englishSystemLabel(conv.title || "New conversation")}"`}
           >
             <MoreHorizontalIcon />
           </Button>
@@ -991,7 +992,7 @@ const ConversationItem = React.memo(function ConversationItem({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete conversation "{conv.title || "New conversation"}"?</AlertDialogTitle>
+            <AlertDialogTitle>Delete conversation "{englishSystemLabel(conv.title || "New conversation")}"?</AlertDialogTitle>
             <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1327,7 +1328,7 @@ export default function ChatPage() {
 
   const startRename = React.useCallback((c: Conversation) => {
     setRenamingId(c.id);
-    setRenameText(c.title || "");
+    setRenameText(englishSystemLabel(c.title || ""));
   }, []);
   const commitRename = React.useCallback(
     async (id: number, value: string) => {

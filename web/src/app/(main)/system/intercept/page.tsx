@@ -51,6 +51,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
+import { englishSystemLabel } from "@/lib/legacy-system-labels.mjs";
 import type {
   InterceptAction,
   InterceptRule,
@@ -509,7 +510,7 @@ export default function InterceptPage() {
   function openEdit(rule: InterceptRule) {
     setEditing(rule);
     setForm({
-      name: rule.name, enabled: rule.enabled, priority: rule.priority,
+      name: englishSystemLabel(rule.name), enabled: rule.enabled, priority: rule.priority,
       match_target: rule.match_target, match_type: rule.match_type,
       pattern: rule.pattern, action: rule.action, message: rule.message,
       timeout_enabled: rule.timeout_enabled, timeout_seconds: rule.timeout_seconds,
@@ -702,7 +703,7 @@ export default function InterceptPage() {
                     <TableCell>
                       <span className="font-mono text-xs tabular-nums">{rule.priority}</span>
                     </TableCell>
-                    <TableCell className="font-medium text-sm">{rule.name}</TableCell>
+                    <TableCell className="font-medium text-sm">{englishSystemLabel(rule.name)}</TableCell>
                     <TableCell>
                       <span className="text-xs text-muted-foreground">
                         {rule.match_target === "tool_name" ? "Tool name" : "Input"}

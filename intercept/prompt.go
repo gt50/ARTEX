@@ -194,6 +194,7 @@ func ParseVerdict(text string) Verdict {
 	}
 	operationLabel, consequenceLabel, ruleLabel := "Actual operation: ", "; Consequence if successful: ", "; Matched rule: "
 	// Saved custom judge prompts may still emit the original Chinese contract.
+	// Legacy labels: actual operation, consequences after success, and matched rule.
 	if strings.HasPrefix(reason, "实际操作：") {
 		operationLabel, consequenceLabel, ruleLabel = "实际操作：", "；成功后的后果：", "；命中规则："
 	}

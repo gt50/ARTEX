@@ -47,7 +47,7 @@ func TestSettlementOnBudgetHit(t *testing.T) {
 	term := drain(t, in, QueryDeps{CallModel: call})
 
 	if term.Reason != ReasonMaxTurns {
-		t.Fatalf("reason=%v, want ReasonMaxTurns（收尾后仍报原预算 reason）", term.Reason)
+		t.Fatalf("reason=%v, want ReasonMaxTurns (original budget reason will still be quoted after closing)", term.Reason)
 	}
 	found := false
 	for _, m := range term.Messages {
@@ -58,16 +58,16 @@ func TestSettlementOnBudgetHit(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("收尾提示未被注入到对话")
+		t.Fatalf("Closing hints are not injected into the conversation")
 	}
 	if len(toolsSeen) < 2 {
-		t.Fatalf("应至少 2 次模型调用(主+收尾)，得 %d", len(toolsSeen))
+		t.Fatalf("Should be at least 2 model calls (main+final), get %d", len(toolsSeen))
 	}
 	if !contains(toolsSeen[0], "Bash") {
-		t.Fatalf("主阶段应能看到 Bash: %v", toolsSeen[0])
+		t.Fatalf("The main stage should see Bash: %v", toolsSeen[0])
 	}
 	if contains(toolsSeen[1], "Bash") {
-		t.Fatalf("收尾阶段应屏蔽 Bash: %v", toolsSeen[1])
+		t.Fatalf("Bash should be blocked during the closing phase: %v", toolsSeen[1])
 	}
 }
 
@@ -88,7 +88,7 @@ func TestNoSettlementFinishesImmediately(t *testing.T) {
 		t.Fatalf("reason=%v", term.Reason)
 	}
 	if m.calls != 1 {
-		t.Fatalf("无收尾应只调用 1 次模型，得 %d", m.calls)
+		t.Fatalf("If there is no ending, the model should only be called once, resulting in %d", m.calls)
 	}
 }
 

@@ -70,9 +70,9 @@ type Task struct {
 	OutputPath  string
 
 	// internal, guarded by Manager.mu
-	backgrounded bool          // surfaced as a background task: notify on exit
-	notified     bool          // completion already enqueued into pending
-	oversize     bool          // terminated by the size watchdog
+	backgrounded bool // surfaced as a background task: notify on exit
+	notified     bool // completion already enqueued into pending
+	oversize     bool // terminated by the size watchdog
 	cmd          *exec.Cmd
 	done         chan struct{} // closed by watch when the process exits
 }
@@ -88,15 +88,15 @@ func (t *Task) info() TaskInfo {
 
 // TaskInfo is an immutable snapshot of a task for safe reads outside the lock.
 type TaskInfo struct {
-	ID          string
-	Kind        TaskKind
-	Command     string
-	Description string
-	Status      TaskStatus
-	ExitCode    int
-	StartTime   time.Time
-	EndTime     time.Time
-	OutputPath  string
+	ID           string
+	Kind         TaskKind
+	Command      string
+	Description  string
+	Status       TaskStatus
+	ExitCode     int
+	StartTime    time.Time
+	EndTime      time.Time
+	OutputPath   string
 	Backgrounded bool
 }
 
@@ -520,6 +520,17 @@ func (m *Manager) Cleanup() {
 	m.closeAllSessions()
 	if m.rootCancel != nil {
 		m.rootCancel()
+	}
+	// Windows keeps output files locked until watch has reaped the process and
+	// closed its file handle. KillAll marks status before that work completes.
+	m.mu.Lock()
+	tasks := make([]*Task, 0, len(m.tasks))
+	for _, task := range m.tasks {
+		tasks = append(tasks, task)
+	}
+	m.mu.Unlock()
+	for _, task := range tasks {
+		<-task.done
 	}
 	_ = os.RemoveAll(filepath.Dir(m.dir)) // <base>/<sessionID>
 }

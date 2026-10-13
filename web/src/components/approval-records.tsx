@@ -26,6 +26,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
+import { englishSystemLabel } from "@/lib/legacy-system-labels.mjs";
 import type {
   InterceptApprovalFilter,
   InterceptApprovalRow,
@@ -118,7 +119,7 @@ function MatchCell({ row, showReason = true }: { row: InterceptApprovalRow; show
           Model decision
         </Badge>
       ) : (
-        <span className="truncate">{row.rule_name || "Rule not recorded or deleted"}</span>
+        <span className="truncate">{englishSystemLabel(row.rule_name || "Rule not recorded or deleted")}</span>
       )}
       {showReason ? (
         <p className="truncate text-muted-foreground text-xs" title={reason}>
@@ -386,7 +387,7 @@ export function ApprovalDetail({
             {audit?.rule_name ? (
               <>
                 <dt className="text-muted-foreground">Rule snapshot</dt>
-                <dd>{audit.rule_name}</dd>
+                <dd>{englishSystemLabel(audit.rule_name)}</dd>
               </>
             ) : null}
             {audit?.profile_id ? (

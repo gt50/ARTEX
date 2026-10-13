@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// TestDeleteFinding verifies删除漏洞 removes both the findings row and its
+// TestDeleteFinding verifiesDelete vulnerability removes both the findings row and its
 // originating exploration node (kind='finding').
 func TestDeleteFinding(t *testing.T) {
 	d, err := Open(testDSN(t))
@@ -114,7 +114,7 @@ func TestFindingsPageAndStats(t *testing.T) {
 		t.Fatalf("severity sort: want critical first, got %q", p1[0].Severity)
 	}
 	if p1[0].Name != "严重漏洞标题" {
-		t.Fatalf("name round-trip: want 严重漏洞标题, got %q", p1[0].Name)
+		t.Fatalf("name round-trip: want serious vulnerability title, got %q", p1[0].Name)
 	}
 	if p1[1].Severity != "high" {
 		t.Fatalf("severity sort: want high second, got %q", p1[1].Severity)

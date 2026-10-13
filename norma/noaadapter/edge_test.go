@@ -217,17 +217,14 @@ func TestCompressFailsWhenArchiveDirIsUnwritable(t *testing.T) {
 	}
 	sess.View(msgs)
 
-	// Make the session directory read-only so the archive write fails.
+	// A regular file at the tier-directory path blocks archive writes on every
+	// OS, including Windows and privileged Unix processes.
 	dir := filepath.Join(base, "ro")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(dir, 0o500); err != nil {
-		t.Skipf("cannot make the directory read-only here: %v", err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(dir, 0o755) })
-	if os.Geteuid() == 0 {
-		t.Skip("running as root; a read-only directory is not enforced")
+	if err := os.WriteFile(filepath.Join(dir, "tier1"), []byte("blocked"), 0o600); err != nil {
+		t.Fatal(err)
 	}
 
 	args, _ := json.Marshal(map[string]any{

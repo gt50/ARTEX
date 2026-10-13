@@ -157,7 +157,7 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	//Equality comparisons (see companies.go's kind='icp' attribution query), so such text is attributed to keywords.
 	lower := strings.ToLower(raw)
 	if !strings.ContainsAny(raw, ".．。") &&
-		(strings.Contains(lower, "icp") || strings.Contains(raw, "备案")) {
+		(strings.Contains(lower, "icp") || strings.Contains(raw, "备案")) { // Chinese alias means registration/filing.
 		return ParseScopeInput(ScopeInput{Kind: "icp", Value: raw})
 	}
 	return ParseScopeInput(ScopeInput{Kind: "keyword", Value: raw})

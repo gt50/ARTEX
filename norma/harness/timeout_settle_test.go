@@ -51,7 +51,7 @@ func TestSettlementOnToolOverrunsBudget(t *testing.T) {
 	term := drainWithCtx(t, context.Background(), in, QueryDeps{CallModel: m.call})
 
 	if term.Reason != ReasonTimeout {
-		t.Fatalf("reason=%v, want ReasonTimeout（工具超墙→就地收尾，非 aborted_tools）", term.Reason)
+		t.Fatalf("reason=%v, want ReasonTimeout (the tool goes beyond the wall → ends on the spot, not aborted_tools)", term.Reason)
 	}
 	found := false
 	for _, msg := range term.Messages {
@@ -62,10 +62,10 @@ func TestSettlementOnToolOverrunsBudget(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("超墙收尾提示未被注入到对话")
+		t.Fatalf("The over-the-wall ending prompt is not injected into the dialogue")
 	}
 	if m.calls != 2 {
-		t.Fatalf("应有 2 次模型调用(主+收尾)，得 %d", m.calls)
+		t.Fatalf("There should be 2 model calls (main+final), get %d", m.calls)
 	}
 }
 
@@ -90,16 +90,16 @@ func TestParentCancelStillAbortsNoSettlement(t *testing.T) {
 	term := drainWithCtx(t, ctx, in, QueryDeps{CallModel: m.call})
 
 	if term.Reason != ReasonAbortedTools {
-		t.Fatalf("reason=%v, want ReasonAbortedTools（父 ctx 取消=真中断，不收尾）", term.Reason)
+		t.Fatalf("reason=%v, want ReasonAbortedTools (parent ctx cancel=true interrupt, no ending)", term.Reason)
 	}
 	for _, msg := range term.Messages {
 		for _, c := range msg.Content {
 			if strings.Contains(c.Text, "SHOULD_NOT_APPEAR") {
-				t.Fatalf("父 ctx 取消时不应进入收尾，却注入了收尾提示")
+				t.Fatalf("The parent ctx should not enter the ending when canceled, but the ending prompt is injected")
 			}
 		}
 	}
 	if m.calls != 1 {
-		t.Fatalf("父取消后不应再调用模型收尾，模型调用数=%d，want 1", m.calls)
+		t.Fatalf("After the parent cancels, the model ending should not be called again. The number of model calls = %d, want 1", m.calls)
 	}
 }

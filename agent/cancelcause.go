@@ -35,7 +35,7 @@ var (
 		"The task is being deleted (DELETE /api/tasks/{id}). The deletion barrier cancelled its running Planner, Workers, and main agent; results from this run will not be used.")
 	AbortPausedOnReload = cause("paused_on_reload", "Task pause state restored on startup",
 		"On startup, the backend restored the task's paused state from the database. This run was cancelled; normally, no agents are running during restoration.")
-	AbortGoalMet = cause("goal_met", "Planner determined that task goals were met",
+	AbortGoalMet = cause("goal_met", "Planner: task goals met",
 		"The planner determined that the task goals were met and marked the task done, then cancelled any remaining Workers. Their intents are marked stopped, not failed.")
 	AbortSettleDrainTimeout = cause("settle_drain_timeout", "Task timeout wrap-up wait expired",
 		"After the task timed out, the system waited for running Workers to wrap up gracefully. The 90-second drain period was insufficient, so they were force-cancelled. Intents are marked exhausted; facts and assets written during wrap-up are preserved.")
@@ -55,9 +55,9 @@ var (
 	// Main Agent and standalone conversation contexts.
 	AbortChatStoppedByUser = cause("chat_stopped_by_user", "Conversation stopped by user",
 		"The user clicked Stop and cancelled this main-agent or conversation-agent run. Existing activity is preserved, and another message can be sent.")
-	AbortChatPausedWithTask = cause("chat_paused_with_task", "Task paused; main-agent conversation cancelled",
+	AbortChatPausedWithTask = cause("chat_paused_with_task", "Task paused; main chat cancelled",
 		"The running main-agent conversation was also cancelled when the user paused the task. Existing activity is preserved; this turn will not be replayed automatically when the task resumes.")
-	AbortChatTurnFinished = cause("chat_turn_finished", "Conversation turn finished and released its context",
+	AbortChatTurnFinished = cause("chat_turn_finished", "Chat turn finished; context released",
 		"This conversation turn finished normally, and the server is releasing its context. This is not an interrupted run; if it appears in an interruption message, cancellation and completion raced.")
 
 	// Process-level and per-run hard backstop.

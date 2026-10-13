@@ -212,11 +212,13 @@ func parseLog(line string) LogLine {
 
 func levelOf(msg string) string {
 	low := strings.ToLower(msg)
+	// Chinese error markers mean failed, dropped, denied, and unreachable.
 	for _, k := range []string{"fatal", "panic", "error", "err:", "失败", "丢弃", "拒绝", "✕", "不可达"} {
 		if strings.Contains(low, k) {
 			return "error"
 		}
 	}
+	// Chinese warning markers mean disabled and retry.
 	for _, k := range []string{"warn", "disabled", "禁用", "skip", "stopped", "⚠", "重试"} {
 		if strings.Contains(low, k) {
 			return "warn"

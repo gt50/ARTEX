@@ -610,7 +610,7 @@ WHERE NOT EXISTS (SELECT 1 FROM intercept_rules WHERE name = $1 OR name = $4)`,
 		name,
 		deleteEndpointPathPattern,
 		"Deletion endpoints (/delete /remove /unlink /erase, etc.) are blocked regardless of HTTP method; many applications allow GET/POST to trigger deletion of real target data",
-		"[内置] 删除类接口路径", // Exact legacy seed name prevents duplicate rules on upgrades.
+		"[内置] 删除类接口路径", // Legacy name means "[Built-in] Deletion endpoint paths"; preserve it for upgrade matching.
 	); err != nil {
 		return fmt.Errorf("rule %q: %w", name, err)
 	}

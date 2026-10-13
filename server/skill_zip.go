@@ -17,7 +17,7 @@ import (
 //The archive/zip of Go only has two built-in decompressors: Store(0) and Deflate(8). When encountering other methods, it will return
 //"zip: unsupported compression algorithm". Compression software often writes other methods in non-default settings
 //(7-Zip's bzip2, WinZip's zstd), so here are the two that pure Go can solve; it really can't be solved
-//(Deflate64 / LZMA / XZ / PPMd / encrypted package) Before decompression, a Chinese prompt is reported instead of the bottom layer
+//(Deflate64 / LZMA / XZ / PPMd / encrypted package) Before decompression, a clear error message is reported instead of the low-level
 //The error is dumped to the user unchanged.
 const (
 	zipMethodStore     = 0

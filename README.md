@@ -102,6 +102,8 @@ Copy `config.example.json` to `config.json` and configure the PostgreSQL connect
 
 Run the frontend checks from `web/` with `npm run check`. Run Go tests with `go test ./...`.
 
+See [English translation notes](TRANSLATION.md) for the remaining compatibility values, preserved test data, and the English historical validation record.
+
 ## Architecture overview
 
 ARTEX uses two connected graphs:

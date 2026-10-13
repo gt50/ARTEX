@@ -4,7 +4,7 @@ Date: 2026-09-10. Branch: `codex/btw-side-question`. Baseline: `8dae851b9b622f2f
 
 Use a standalone PostgreSQL test library and data directory; real model credentials are only injected into the standalone test environment, no code or this record is written, and the product default model is not modified. Go 1.26.3, norma v0.3.6, Next.js 16.2.9.
 
-The actual model conversations, return objects, engineering assertions, and Qwen original review text are saved in [validation-2026-09-10.json](validation-2026-09-10.json), which does not have API credentials.
+The actual model conversations, return objects, engineering assertions, and Qwen original review text are saved in [validation-2026-09-10.json](validation-2026-09-10.json), which does not have API credentials. An [English reading copy](validation-2026-09-10.en.json) translates the recorded prompts, answers, and review; the original remains the authoritative evidence.
 
 ## Project inspection
 

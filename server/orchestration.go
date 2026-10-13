@@ -777,7 +777,7 @@ func (s *Server) seedReporterAgent() {
 	}); err != nil {
 		log.Printf("[reporter] Failed to create trigger: %v", err)
 	}
-	log.Printf("[reporter] "Report Writing" agent + finding trigger has been preset")
+	log.Printf("[reporter] Report Writing agent and finding trigger have been preset")
 }
 
 // seedAutoReportFindingBinding adds "auto" to report_finding's binding ONCE so
