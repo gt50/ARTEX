@@ -11,8 +11,8 @@ func TestParseFilterMalformedFallsBackToMatchAll(t *testing.T) {
 		raw  string
 	}{
 		{"empty input", ""},
-		{"非法 JSON", `{not json`},
-		{"截断的 JSON", `{"min_severity":`},
+		{"invalid JSON", `{not json`},
+		{"truncated JSON", `{"min_severity":`},
 		{"type mismatch", `{"min_severity": 123, "task_ids": "abc"}`},
 		{"top-level array", `[1,2,3]`},
 	}

@@ -82,13 +82,11 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 
 ### Test data and case labels
 
-67 files; 385 lines contain Chinese.
+61 files; 336 lines contain Chinese.
 
 | File | Lines |
 | --- | ---: |
 | [agent/blackboard_inheritance_test.go](<agent/blackboard_inheritance_test.go>) | 1 |
-| [agent/prompt_now_test.go](<agent/prompt_now_test.go>) | 6 |
-| [agent/prompt_test.go](<agent/prompt_test.go>) | 8 |
 | [agent/provider_quota_test.go](<agent/provider_quota_test.go>) | 1 |
 | [agent/review_context_test.go](<agent/review_context_test.go>) | 4 |
 | [agent/terminalreason_test.go](<agent/terminalreason_test.go>) | 4 |
@@ -120,13 +118,9 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | [norma/noa/prune_test.go](<norma/noa/prune_test.go>) | 2 |
 | [norma/noa/tokenize_test.go](<norma/noa/tokenize_test.go>) | 5 |
 | [norma/noaadapter/project_test.go](<norma/noaadapter/project_test.go>) | 1 |
-| [notify/channels_test.go](<notify/channels_test.go>) | 13 |
-| [notify/email_test.go](<notify/email_test.go>) | 5 |
-| [notify/filter_test.go](<notify/filter_test.go>) | 13 |
-| [notify/pack_test.go](<notify/pack_test.go>) | 13 |
-| [notify/redact_test.go](<notify/redact_test.go>) | 2 |
+| [notify/email_test.go](<notify/email_test.go>) | 1 |
+| [notify/filter_test.go](<notify/filter_test.go>) | 11 |
 | [notify/render_test.go](<notify/render_test.go>) | 8 |
-| [notify/webhook_template_test.go](<notify/webhook_template_test.go>) | 1 |
 | [server/assets_scope_test.go](<server/assets_scope_test.go>) | 2 |
 | [server/auth_test.go](<server/auth_test.go>) | 2 |
 | [server/chat_mentions_test.go](<server/chat_mentions_test.go>) | 18 |

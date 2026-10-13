@@ -261,11 +261,11 @@ func TestEmailValidateReportsMissingFields(t *testing.T) {
 		name string
 		cfg  map[string]any
 	}{
-		{"缺 host", map[string]any{"port": float64(25), "from": "a@b.c", "to": []any{"d@e.f"}}},
-		{"缺 port", map[string]any{"host": "smtp.example.com"}},
+		{"missing host", map[string]any{"port": float64(25), "from": "a@b.c", "to": []any{"d@e.f"}}},
+		{"missing port", map[string]any{"host": "smtp.example.com"}},
 		{"port out of range", map[string]any{"host": "h", "port": float64(70000), "from": "a@b.c", "to": []any{"d@e.f"}}},
-		{"缺 from", map[string]any{"host": "h", "port": float64(25), "to": []any{"d@e.f"}}},
-		{"缺 to", map[string]any{"host": "h", "port": float64(25), "from": "a@b.c"}},
+		{"missing from", map[string]any{"host": "h", "port": float64(25), "to": []any{"d@e.f"}}},
+		{"missing to", map[string]any{"host": "h", "port": float64(25), "from": "a@b.c"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

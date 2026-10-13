@@ -20,10 +20,10 @@ func singleMsg() Message {
 	return Message{
 		Items: []Item{{
 			FindingID: 42,
-			Name:      `登录处 "SQL注入" 风险`,
-			VulnClass: "SQL注入",
+			Name:      `Login endpoint "SQL injection" risk`,
+			VulnClass: "SQL injection",
 			Severity:  "high",
-			Summary:   "参数 id\n未过滤 导致注入",
+			Summary:   "Parameter id\nUnfiltered input causes injection",
 			Assets:    []string{"a.example.com", "b.example.com"},
 			DetailURL: "https://artex.local/function/findings/detail?id=42",
 		}},
@@ -36,10 +36,10 @@ func batchMsg(n int) Message {
 	for i := 0; i < n; i++ {
 		m.Items = append(m.Items, Item{
 			FindingID: int64(i + 1),
-			Name:      "漏洞" + itoa(i+1),
+			Name:      "Finding" + itoa(i+1),
 			VulnClass: "XSS",
 			Severity:  "medium",
-			Summary:   "反射型跨站脚本",
+			Summary:   "Reflected cross-site scripting",
 			Assets:    []string{"target.example.com"},
 		})
 	}
@@ -251,7 +251,7 @@ func TestWebhookDefaultTemplateProducesValidJSON(t *testing.T) {
 	// This is the meaning of the default template: when there are quotation marks and line breaks in the title, any simple
 	// `"title": "{{.Title}}"` will produce illegal JSON. {{json .}} will not.
 	srv := capturePost(t, `{"ok":true}`, func(t *testing.T, body map[string]any, _ *http.Request) {
-		if body["title"] != `[🟠 High] 登录处 "SQL注入" 风险` {
+		if body["title"] != `[🟠 High] Login endpoint "SQL injection" risk` {
 			t.Errorf("Title not restored correctly: %v", body["title"])
 		}
 		items, _ := body["items"].([]any)
@@ -259,7 +259,7 @@ func TestWebhookDefaultTemplateProducesValidJSON(t *testing.T) {
 			t.Fatalf("items quantity should be 1, getting %d", len(items))
 		}
 		it, _ := items[0].(map[string]any)
-		if it["summary"] != "参数 id\n未过滤 导致注入" {
+		if it["summary"] != "Parameter id\nUnfiltered input causes injection" {
 			t.Errorf("Digest not restored correctly: %v", it["summary"])
 		}
 		// The value must be a JSON number rather than a string (writing such as json:"...,string" will cause this trap).
@@ -277,17 +277,17 @@ func TestWebhookCustomTemplateAndHeaders(t *testing.T) {
 		if r.Header.Get("X-Token") != "s3cret" {
 			t.Errorf("Custom header missing: %v", r.Header)
 		}
-		if body["msg"] != "3 条" {
+		if body["msg"] != "3 items" {
 			t.Errorf("Custom template rendering error: %v", body["msg"])
 		}
-		if body["first"] != "漏洞1" {
+		if body["first"] != "Finding1" {
 			t.Errorf("Range extraction error: %v", body["first"])
 		}
 	})
 	cfg := map[string]any{
 		"url":           srv.URL,
 		"headers":       map[string]any{"X-Token": "s3cret"},
-		"body_template": `{"msg": {{json (printf "%d 条" .Count)}}, "first": {{json (index .Items 0).Name}}}`,
+		"body_template": `{"msg": {{json (printf "%d items" .Count)}}, "first": {{json (index .Items 0).Name}}}`,
 	}
 	if _, err := (webhookChannel{}).Send(context.Background(), cfg, batchMsg(3)); err != nil {
 		t.Fatalf("Delivery failed: %v", err)
@@ -333,7 +333,7 @@ func TestEmailMessageIsWellFormed(t *testing.T) {
 	}
 	if dec, err := new(mime.WordDecoder).DecodeHeader(mustExtractHeader(t, msg, "Subject")); err != nil {
 		t.Fatalf("Topic cannot be decoded: %v", err)
-	} else if !strings.Contains(dec, "SQL注入") {
+	} else if !strings.Contains(dec, "SQL injection") {
 		t.Fatalf("The decoded content of the topic is incorrect: %q", dec)
 	}
 
@@ -353,7 +353,7 @@ func TestEmailMessageIsWellFormed(t *testing.T) {
 	// The title appears as is in the text position: double quotes in HTML text content are legal characters and do not need to be escaped.
 	// Keep the title unchanged to guard against an extra layer of quote escaping.
 	// Quotes inside text should remain visible as ordinary quotes.
-	if !strings.Contains(html, `"SQL注入"`) {
+	if !strings.Contains(html, `"SQL injection"`) {
 		t.Fatalf("Quotation marks in the title should be left intact in the text position: %.200s", html)
 	}
 }
@@ -453,7 +453,7 @@ func TestEmailSMTPErrorClassification(t *testing.T) {
 		{"", false},
 	}
 	for _, tc := range cases {
-		err := smtpStageError("收件人被拒", errors.New(tc.reply))
+		err := smtpStageError("Recipient rejected", errors.New(tc.reply))
 		if got := IsPermanent(err); got != tc.permanent {
 			t.Errorf("Reply %q: Expect permanent=%v Get %v", tc.reply, tc.permanent, got)
 		}

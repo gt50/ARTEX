@@ -76,7 +76,7 @@ func TestChannelErrorsNeverLeakCredentials(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// The peer that must fail: 127.0.0.1:1 is unattended and takes the path of connection rejection.
 			_, err := tc.ch.Send(context.Background(), tc.cfg, Message{
-				Items: []Item{{FindingID: 1, Severity: "high", Name: "泄露探针"}},
+				Items: []Item{{FindingID: 1, Severity: "high", Name: "Leak probe"}},
 			})
 			if err == nil {
 				t.Fatal("An error should be reported for unreachable addresses")
@@ -175,7 +175,7 @@ func TestRedactTransportErrorStripsURL(t *testing.T) {
 // TestRedactURLsInTextHandlesFallback Covert path: custom error that is not *url.Error
 // (such as the error returned by the redirection policy) will also be removed.
 func TestRedactURLsInTextHandlesFallback(t *testing.T) {
-	in := fmt.Sprintf("拒绝跨主机重定向（a.example → http://b.example/bot%s/send）", leakProbeToken)
+	in := fmt.Sprintf("Cross-host redirect rejected (a.example → http://b.example/bot%s/send)", leakProbeToken)
 	got := redactURLsInText(in)
 	assertNoSecret(t, got, leakProbeToken)
 	if !strings.Contains(got, "http://b.example/…") {

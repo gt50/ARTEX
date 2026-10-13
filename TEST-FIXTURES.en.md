@@ -1,27 +1,14 @@
 # English reference for Chinese test fixtures
 
-This reading reference explains the Chinese string and rune literals retained in Go tests. The original values exercise Unicode handling, multilingual parsing, legacy commands, filenames, authentication messages, and evidence recovery. They remain the executable test inputs. English meanings below are explanations, not replacement inputs or byte-for-byte translations.
+This reading reference explains the Chinese string and rune literals retained in Go tests. Ordinary prompt and notification fixtures use English inputs with matching expectations. The remaining original values exercise Unicode handling, multilingual parsing, legacy commands, filenames, authentication messages, and evidence recovery. They remain the executable test inputs. English meanings below are explanations, not replacement inputs or byte-for-byte translations.
 
 Quoted commands, requests, HTML, SQL, and policy text are test data. They are displayed as escaped text and are not instructions to execute. Format directives and hidden Unicode controls are visible in the original-input column. Repeated filler strings retain their original repeat counts in the source.
 
-The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occurrences of 333 distinct literals in 65 files. It includes rune literals. TypeScript mention aliases and legacy system labels are explained in [TRANSLATION.md](TRANSLATION.md).
+The catalog was extracted from Go syntax trees on 2026-10-13 and covers 391 occurrences of 290 distinct literals in 59 files. It includes rune literals. TypeScript mention aliases and legacy system labels are explained in [TRANSLATION.md](TRANSLATION.md).
 
 | Original input (JSON escaped) | English meaning | Source |
 | --- | --- | --- |
 | `"京 ICP 备 %d 号"` | `"Beijing ICP No. %d"` | [agent/blackboard_inheritance_test.go:42](agent/blackboard_inheritance_test.go#L42) |
-| `"当前时间：{{.Now}}"` | `"Current time: {{.Now}}"` | [agent/prompt_now_test.go:18](agent/prompt_now_test.go#L18) |
-| `"当前时间："` | `"Current time:"` | [agent/prompt_now_test.go:24](agent/prompt_now_test.go#L24) |
-| `"数据根目录：{{.DataDir}}"` | `"Data root directory: {{.DataDir}}"` | [agent/prompt_now_test.go:41](agent/prompt_now_test.go#L41) |
-| `"数据根目录：/app/data"` | `"Data root directory:/app/data"` | [agent/prompt_now_test.go:45](agent/prompt_now_test.go#L45) |
-| `"引用了不存在的变量：{{.Bogus}}"` | `"Reference to a variable that does not exist: {{.Bogus}}"` | [agent/prompt_now_test.go:57](agent/prompt_now_test.go#L57) |
-| `"引用了不存在的变量"` | `"Reference to a variable that does not exist"` | [agent/prompt_now_test.go:61](agent/prompt_now_test.go#L61) |
-| `"目标:{{.Goal}} 范围:{{.Scope}}"` | `"Goal:{{.Goal}} Scope:{{.Scope}}"` | [agent/prompt_test.go:20](agent/prompt_test.go#L20) |
-| `"拿下X"` | `"Gain control of X"` | [agent/prompt_test.go:24](agent/prompt_test.go#L24)<br>[agent/prompt_test.go:37](agent/prompt_test.go#L37) |
-| `"目标:拿下X 范围:*.x.com"` | `"Goal: Capture X Scope: *.x.com"` | [agent/prompt_test.go:24](agent/prompt_test.go#L24) |
-| `"PLANNER 拿下X"` | `"PLANNER takes X"` | [agent/prompt_test.go:38](agent/prompt_test.go#L38) |
-| `"{{if .ProxyAddr}}走代理 {{.ProxyAddr}}{{else}}手动{{end}}"` | `"{{if .ProxyAddr}} go through proxy {{.ProxyAddr}}{{else}}manually{{end}}"` | [agent/prompt_test.go:51](agent/prompt_test.go#L51) |
-| `"走代理 127.0.0.1:8080"` | `"Go to proxy 127.0.0.1:8080"` | [agent/prompt_test.go:54](agent/prompt_test.go#L54)<br>[agent/prompt_test.go:69](agent/prompt_test.go#L69) |
-| `"手动"` | `"Manual"` | [agent/prompt_test.go:76](agent/prompt_test.go#L76) |
 | `"账户余额不足，请充值"` | `"The account balance is insufficient, please top up"` | [agent/provider_quota_test.go:27](agent/provider_quota_test.go#L27)<br>[server/task_llm_test.go:120](server/task_llm_test.go#L120) |
 | `"只操作隔离测试目录"` | `"Only operate the isolated test directory"` | [agent/review_context_test.go:29](agent/review_context_test.go#L29)<br>[agent/review_context_test.go:110](agent/review_context_test.go#L110) |
 | `"验证创建和清理"` | `"Verify creation and cleanup"` | [agent/review_context_test.go:29](agent/review_context_test.go#L29)<br>[agent/review_context_test.go:110](agent/review_context_test.go#L110) |
@@ -41,10 +28,10 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"京icp备123号"` | `"Beijing ICP No. 123"` | [db/company_scope_test.go:59](db/company_scope_test.go#L59) |
 | `"沪网备案 9988"` | `"Shanghai Net Registration 9988"` | [db/company_scope_test.go:60](db/company_scope_test.go#L60) |
 | `"沪网备案9988"` | `"Shanghai Net Registration 9988"` | [db/company_scope_test.go:60](db/company_scope_test.go#L60) |
-| `"备案 www.example.com"` | `"Registration www.example.com"` | [db/company_scope_test.go:65](db/company_scope_test.go#L65) |
+| `"备案 www.example.com"` | `"Registration www.example.com"` | [db/company_scope_test.go:65](db/company_scope_test.go#L65)<br>[db/company_scope_test.go:65](db/company_scope_test.go#L65) |
 | `"某公司 ICP v1.0"` | `"A company ICP v1.0"` | [db/company_scope_test.go:66](db/company_scope_test.go#L66) |
 | `"某公司 icp v1.0"` | `"A company icp v1.0"` | [db/company_scope_test.go:66](db/company_scope_test.go#L66) |
-| `"备案 例．com"` | `"Filing case. com"` | [db/company_scope_test.go:67](db/company_scope_test.go#L67) |
+| `"备案 例．com"` | `"Filing case. com"` | [db/company_scope_test.go:67](db/company_scope_test.go#L67)<br>[db/company_scope_test.go:67](db/company_scope_test.go#L67) |
 | `" 京ICP 备 123号-1\t"` | `"Beijing ICP No. 123-1"` | [db/company_scope_test.go:212](db/company_scope_test.go#L212) |
 | `"京icp备123号-1"` | `"Beijing ICP No. 123-1"` | [db/company_scope_test.go:216](db/company_scope_test.go#L216) |
 | `"京 ICP备 998877号"` | `"Beijing ICP No. 998877"` | [db/company_scope_test.go:268](db/company_scope_test.go#L268) |
@@ -57,7 +44,7 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"资产树测试"` | `"Asset tree testing"` | [db/finding_assets_test.go:58](db/finding_assets_test.go#L58) |
 | `"目标"` | `"Target"` | [db/finding_assets_test.go:58](db/finding_assets_test.go#L58)<br>[db/finding_assets_test.go:164](db/finding_assets_test.go#L164)<br>[db/findings_test.go:22](db/findings_test.go#L22)<br>[db/notification_test.go:526](db/notification_test.go#L526)<br>[db/notification_test.go:814](db/notification_test.go#L814) |
 | `"反射型 XSS"` | `"Reflected XSS"` | [db/finding_assets_test.go:81](db/finding_assets_test.go#L81)<br>[db/findings_test.go:34](db/findings_test.go#L34) |
-| `"信息泄露"` | `"information leakage"` | [db/finding_assets_test.go:85](db/finding_assets_test.go#L85)<br>[notify/filter_test.go:110](notify/filter_test.go#L110)<br>[notify/filter_test.go:111](notify/filter_test.go#L111) |
+| `"信息泄露"` | `"information leakage"` | [db/finding_assets_test.go:85](db/finding_assets_test.go#L85)<br>[notify/filter_test.go:110](notify/filter_test.go#L110)<br>[notify/filter_test.go:110](notify/filter_test.go#L110)<br>[notify/filter_test.go:111](notify/filter_test.go#L111) |
 | `"孤儿"` | `"orphan"` | [db/finding_assets_test.go:89](db/finding_assets_test.go#L89) |
 | `"资产筛选测试"` | `"Asset Screening Test"` | [db/finding_assets_test.go:164](db/finding_assets_test.go#L164) |
 | `"子域名上的"` | `"on subdomain"` | [db/finding_assets_test.go:178](db/finding_assets_test.go#L178) |
@@ -89,7 +76,7 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"保留共享/目标"` | `"Retain shared facts and goals"` | [db/intent_delete_test.go:131](db/intent_delete_test.go#L131) |
 | `"拿下后台"` | `"Gain access to the admin portal"` | [db/intent_delete_test.go:138](db/intent_delete_test.go#L138) |
 | `"旁路意图"` | `"bypass intent"` | [db/intent_delete_test.go:144](db/intent_delete_test.go#L144) |
-| `"漏洞"` | `"Finding / vulnerability"` | [db/intent_delete_test.go:145](db/intent_delete_test.go#L145)<br>[notify/channels_test.go:39](notify/channels_test.go#L39)<br>[notify/pack_test.go:36](notify/pack_test.go#L36)<br>[notify/pack_test.go:40](notify/pack_test.go#L40)<br>[notify/render_test.go:18](notify/render_test.go#L18) |
+| `"漏洞"` | `"Finding / vulnerability"` | [db/intent_delete_test.go:145](db/intent_delete_test.go#L145)<br>[notify/render_test.go:18](notify/render_test.go#L18) |
 | `"共享事实"` | `"Shared facts"` | [db/intent_delete_test.go:148](db/intent_delete_test.go#L148) |
 | `"由共享事实衍生"` | `"Derived from shared facts"` | [db/intent_delete_test.go:151](db/intent_delete_test.go#L151) |
 | `"[模型] 请确认"` | `"[Model] Please confirm"` | [db/intercept_detail_test.go:19](db/intercept_detail_test.go#L19) |
@@ -99,7 +86,7 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"[模型] 放行"` | `"[model] Allow"` | [db/intercept_filter_test.go:15](db/intercept_filter_test.go#L15) |
 | `"[模型] fixture"` | `"[model] fixture"` | [db/intercept_filter_test.go:58](db/intercept_filter_test.go#L58)<br>[server/intercept_filter_test.go:37](server/intercept_filter_test.go#L37)<br>[server/intercept_filter_test.go:41](server/intercept_filter_test.go#L41) |
 | `"测试渠道-"` | `"Test channel-"` | [db/notification_test.go:33](db/notification_test.go#L33) |
-| `"SQL注入"` | `"SQL injection"` | [db/notification_test.go:159](db/notification_test.go#L159)<br>[db/notification_test.go:533](db/notification_test.go#L533)<br>[db/notification_test.go:586](db/notification_test.go#L586)<br>[db/notification_test.go:821](db/notification_test.go#L821)<br>[notify/channels_test.go:24](notify/channels_test.go#L24)<br>[notify/channels_test.go:336](notify/channels_test.go#L336)<br>[notify/filter_test.go:70](notify/filter_test.go#L70)<br>[notify/filter_test.go:106](notify/filter_test.go#L106)<br>[notify/filter_test.go:107](notify/filter_test.go#L107)<br>[notify/filter_test.go:108](notify/filter_test.go#L108)<br>[notify/filter_test.go:109](notify/filter_test.go#L109)<br>[notify/filter_test.go:111](notify/filter_test.go#L111)<br>[notify/filter_test.go:116](notify/filter_test.go#L116)<br>[notify/filter_test.go:118](notify/filter_test.go#L118)<br>[notify/webhook_template_test.go:65](notify/webhook_template_test.go#L65)<br>[server/notify_api_test.go:237](server/notify_api_test.go#L237)<br>[server/notify_api_test.go:244](server/notify_api_test.go#L244) |
+| `"SQL注入"` | `"SQL injection"` | [db/notification_test.go:159](db/notification_test.go#L159)<br>[db/notification_test.go:533](db/notification_test.go#L533)<br>[db/notification_test.go:586](db/notification_test.go#L586)<br>[db/notification_test.go:821](db/notification_test.go#L821)<br>[notify/filter_test.go:70](notify/filter_test.go#L70)<br>[notify/filter_test.go:106](notify/filter_test.go#L106)<br>[notify/filter_test.go:107](notify/filter_test.go#L107)<br>[notify/filter_test.go:108](notify/filter_test.go#L108)<br>[notify/filter_test.go:109](notify/filter_test.go#L109)<br>[notify/filter_test.go:111](notify/filter_test.go#L111)<br>[notify/filter_test.go:116](notify/filter_test.go#L116)<br>[notify/filter_test.go:118](notify/filter_test.go#L118)<br>[server/notify_api_test.go:237](server/notify_api_test.go#L237)<br>[server/notify_api_test.go:244](server/notify_api_test.go#L244) |
 | `"全收渠道收到 high"` | `"The channel accepting all severities receives high"` | [db/notification_test.go:173](db/notification_test.go#L173) |
 | `"全收渠道收到 low"` | `"The channel accepting all severities receives low"` | [db/notification_test.go:174](db/notification_test.go#L174) |
 | `"仅严重渠道跳过 high"` | `"The critical-only channel skips high"` | [db/notification_test.go:175](db/notification_test.go#L175) |
@@ -182,46 +169,16 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"中文测试"` | `"Chinese test"` | [norma/noa/tokenize_test.go:38](norma/noa/tokenize_test.go#L38) |
 | `"文"` | `"Text (single Unicode character)"` | [norma/noa/tokenize_test.go:57](norma/noa/tokenize_test.go#L57)<br>[server/finding_retests_test.go:295](server/finding_retests_test.go#L295) |
 | `"中文正文 🔐"` | `"Chinese text 🔐"` | [norma/noaadapter/project_test.go:315](norma/noaadapter/project_test.go#L315) |
-| `"登录处 \"SQL注入\" 风险"` | `"Login \"SQL injection\" risk"` | [notify/channels_test.go:23](notify/channels_test.go#L23) |
-| `"参数 id\n未过滤 导致注入"` | `"Parameter id\nUnfiltered leads to injection"` | [notify/channels_test.go:26](notify/channels_test.go#L26)<br>[notify/channels_test.go:262](notify/channels_test.go#L262) |
-| `"反射型跨站脚本"` | `"Reflected cross-site scripting"` | [notify/channels_test.go:42](notify/channels_test.go#L42) |
-| `"[🟠 High] 登录处 \"SQL注入\" 风险"` | `"[🟠 High] Login \"SQL injection\" risk"` | [notify/channels_test.go:254](notify/channels_test.go#L254) |
-| `"3 条"` | `"3 items"` | [notify/channels_test.go:280](notify/channels_test.go#L280) |
-| `"漏洞1"` | `"Vulnerability 1"` | [notify/channels_test.go:283](notify/channels_test.go#L283) |
-| `"{\"msg\": {{json (printf \"%d 条\" .Count)}}, \"first\": {{json (index .Items 0).Name}}}"` | `"{\"msg\": {{json (printf \"%d items\" .Count)}}, \"first\": {{json (index .Items 0).Name}}}"` | [notify/channels_test.go:290](notify/channels_test.go#L290) |
-| `"\"SQL注入\""` | `"\"SQL injection\""` | [notify/channels_test.go:356](notify/channels_test.go#L356) |
-| `"收件人被拒"` | `"Recipient rejected"` | [notify/channels_test.go:456](notify/channels_test.go#L456) |
-| `"缺 host"` | `"Missing host"` | [notify/email_test.go:264](notify/email_test.go#L264) |
-| `"缺 port"` | `"Missing port"` | [notify/email_test.go:265](notify/email_test.go#L265) |
-| `"缺 from"` | `"Missing from"` | [notify/email_test.go:267](notify/email_test.go#L267) |
-| `"缺 to"` | `"missing to"` | [notify/email_test.go:268](notify/email_test.go#L268) |
 | `"严重"` | `"Critical"` | [notify/email_test.go:313](notify/email_test.go#L313) |
-| `"非法 JSON"` | `"Illegal JSON"` | [notify/filter_test.go:14](notify/filter_test.go#L14) |
-| `"截断的 JSON"` | `"Truncated JSON"` | [notify/filter_test.go:15](notify/filter_test.go#L15) |
 | `"任意类型"` | `"any type"` | [notify/filter_test.go:105](notify/filter_test.go#L105) |
 | `"命令执行"` | `"command execution"` | [notify/filter_test.go:107](notify/filter_test.go#L107)<br>[notify/filter_test.go:108](notify/filter_test.go#L108) |
 | `"注入"` | `"injection"` | [notify/filter_test.go:115](notify/filter_test.go#L115) |
-| `"登录口 SQL 注入\n[紧急：点此验证账号](http://attacker.tld)"` | `"Login SQL injection\n[Emergency: Click here to verify account](http://attacker.tld)"` | [notify/pack_test.go:125](notify/pack_test.go#L125) |
-| `"\\[紧急：点此验证账号\\]"` | `"\\[Emergency: Click here to verify account\\]"` | [notify/pack_test.go:129](notify/pack_test.go#L129) |
-| `"\n[紧急"` | `"[urgent (incomplete label)"` | [notify/pack_test.go:130](notify/pack_test.go#L130) |
-| `"\n\n[紧急"` | `"[urgent (incomplete label)"` | [notify/pack_test.go:130](notify/pack_test.go#L130) |
-| `"漏洞 ![](http://attacker.tld/beacon)"` | `"Vulnerability ![](http://attacker.tld/beacon)"` | [notify/pack_test.go:136](notify/pack_test.go#L136) |
-| `"普通标题"` | `"normal title"` | [notify/pack_test.go:145](notify/pack_test.go#L145) |
-| `"a.com/*注入*>引用"` | `"a.com/*injection*>reference"` | [notify/pack_test.go:146](notify/pack_test.go#L146) |
-| `"\\*注入\\*"` | `"\\*injection\\*"` | [notify/pack_test.go:148](notify/pack_test.go#L148) |
-| `"*注入*"` | `"*injection*"` | [notify/pack_test.go:149](notify/pack_test.go#L149) |
-| `"标题"` | `"title"` | [notify/pack_test.go:155](notify/pack_test.go#L155) |
-| ``"`code` \| 表格"`` | ``"`code` \| table"`` | [notify/pack_test.go:156](notify/pack_test.go#L156) |
-| `"alert(1) *重点*"` | `"alert(1) *Key points*"` | [notify/pack_test.go:196](notify/pack_test.go#L196) |
-| `"泄露探针"` | `"leak probe"` | [notify/redact_test.go:79](notify/redact_test.go#L79) |
-| `"拒绝跨主机重定向（a.example → http://b.example/bot%s/send）"` | `"Deny cross-host redirection (a.example → http://b.example/bot%s/send)"` | [notify/redact_test.go:178](notify/redact_test.go#L178) |
 | `"中文测试内容"` | `"Chinese test content"` | [notify/render_test.go:14](notify/render_test.go#L14) |
 | `"混合 mixed 内容 content"` | `"mixed mixed content content"` | [notify/render_test.go:15](notify/render_test.go#L15) |
 | `"a中b文c测d试e"` | `"Alternating Latin and Chinese characters: a, middle, b, text, c, test, d, try, e"` | [notify/render_test.go:16](notify/render_test.go#L16) |
 | `"一二三四五六七八九十"` | `"One, two, three, four, five, six, seven, eight, nine, ten"` | [notify/render_test.go:62](notify/render_test.go#L62)<br>[notify/render_test.go:82](notify/render_test.go#L82) |
 | `"第一行\n\n第二行\t带制表   多空格"` | `"first line\n\nSecond line with tabs and multiple spaces"` | [notify/render_test.go:74](notify/render_test.go#L74) |
 | `"<b>标题</b>正文正文正文<a href=\"https://example.com/very/long/path\">查看详情</a>"` | `"HTML containing a bold title, three repetitions of \"body text\", and a \"View details\" link."` | [notify/render_test.go:90](notify/render_test.go#L90) |
-| `"参数 id"` | `"Parameter id"` | [notify/webhook_template_test.go:65](notify/webhook_template_test.go#L65) |
 | `"[\n\t\t\"example.com\",\n\t\t{\"kind\":\"icp\",\"value\":\"京 ICP备 123号\"},\n\t\t{\"kind\":\"keyword\",\"value\":\"Acme Security\"}\n\t]"` | `"Scope inputs: example.com; an ICP filing value \"Beijing ICP filing No. 123\"; and the keyword \"Acme Security\"."` | [server/assets_scope_test.go:18](server/assets_scope_test.go#L18) |
 | `"密码密码密码密码"` | `"password password password password"` | [server/auth_test.go:73](server/auth_test.go#L73) |
 | `"密码强"` | `"Strong password"` | [server/auth_test.go:74](server/auth_test.go#L74) |
@@ -309,8 +266,8 @@ The catalog was extracted from Go syntax trees on 2026-10-13 and covers 443 occu
 | `"中文/技能"` | `"Chinese/Skills"` | [server/skill_upload_test.go:24](server/skill_upload_test.go#L24) |
 | `"中\u202e文"` | `"The characters for \"Chinese\" with a right-to-left override between them."` | [server/skill_upload_test.go:24](server/skill_upload_test.go#L24) |
 | `"中文技能!"` | `"Chinese skill!"` | [server/skill_upload_test.go:25](server/skill_upload_test.go#L25) |
-| `"参考/中文说明.md"` | `"Reference/Chinese description.md"` | [server/skill_upload_test.go:43](server/skill_upload_test.go#L43) |
-| `"assets/图片-1_v2.png"` | `"assets/image-1_v2.png"` | [server/skill_upload_test.go:46](server/skill_upload_test.go#L46) |
+| `"参考/中文说明.md"` | `"Reference/Chinese description.md"` | [server/skill_upload_test.go:43](server/skill_upload_test.go#L43)<br>[server/skill_upload_test.go:43](server/skill_upload_test.go#L43) |
+| `"assets/图片-1_v2.png"` | `"assets/image-1_v2.png"` | [server/skill_upload_test.go:46](server/skill_upload_test.go#L46)<br>[server/skill_upload_test.go:46](server/skill_upload_test.go#L46) |
 | `"中文 名.md"` | `"Chinese name.md"` | [server/skill_upload_test.go:56](server/skill_upload_test.go#L56) |
 | `"中\u202e文.md"` | `"Filename containing the characters for \"Chinese\", a right-to-left override, and .md."` | [server/skill_upload_test.go:56](server/skill_upload_test.go#L56) |
 | `"---\nname: 中文技能\ndescription: 测试\n---\n正文\n"` | `"Skill metadata: name \"Chinese skill\", description \"Test\", followed by body text."` | [server/skill_upload_test.go:129](server/skill_upload_test.go#L129) |
