@@ -152,7 +152,7 @@ function summaryOf(n: TaskNode): string {
         if (typeof v === "string" && v.trim()) return v;
       }
     } catch {
-      return raw; // 非 JSON payload:原样播报
+      return raw; //Non-JSON payload: broadcast as is
     }
   }
   return raw;
@@ -218,7 +218,7 @@ function AssetList({ assets, dense = false }: { assets: FindingAsset[]; dense?: 
       <div className="mb-1.5 text-xs font-medium text-muted-foreground">Related assets · {assets.length}</div>
       <ul className="flex flex-wrap gap-1.5">
         {assets.map((a) => {
-          // 运行时 a.type 可能是标签表未覆盖的类型,退回原始字符串。转一层类型让回退不被判成多余。
+          //At runtime, a.type may be a type not covered by the tag table, and the original string is returned. Change one level of type so that the rollback is not deemed redundant.
           const typeLabel =
             (taskAssetTypeLabel as (t: NewAssetType) => string | undefined)(a.type as NewAssetType) || a.type;
           return (
@@ -453,8 +453,8 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
   const seenRef = React.useRef<Set<string>>(new Set());
   const baselineRef = React.useRef<number | null>(null);
   const streamRef = React.useRef("");
-  // 只有「最新在前的第 1 页」才是真正的直播位；其余位置轮询只更新未读计数，
-  // 不动列表，免得翻页/展开时内容在脚下变。
+  //Only the "latest page 1" is the real live broadcast position; polling of other positions only updates the unread count.
+  //Keep the list immobile to prevent the content from changing under your feet when turning pages/expanding.
   const atLive = page === 1 && order === "desc";
 
   React.useEffect(() => {
@@ -463,7 +463,7 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
     return () => clearInterval(t);
   }, []);
 
-  // 输入防抖:打字停 300ms 才真正查询,并回到第一页。
+  //Input anti-shake: Stop typing for 300ms before actually querying and returning to the first page.
   React.useEffect(() => {
     const t = setTimeout(() => {
       setQuery(queryInput);
@@ -474,9 +474,9 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
 
   React.useEffect(() => {
     let alive = true;
-    let rendered = false; // 本次查询是否已经把内容渲染出来过
-    // 换任务/筛选/排序 = 换了一条播报流:清掉「新」标记和未读基线。翻页不算换流,
-    // 否则回到最新时就没有未读计数可算了。
+    let rendered = false; //Whether the content has been rendered in this query
+    //Change tasks/filter/sort = change a broadcast stream: clear the "new" mark and unread baseline. Turning pages does not count as flow exchange,
+    //Otherwise there will be no unread count to count when going back to the latest.
     const stream = `${taskId}|${kinds.join(",")}|${query}|${order}`;
     if (streamRef.current !== stream) {
       streamRef.current = stream;
@@ -489,7 +489,7 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
         .explorationNodes(taskId, { page, size, kinds, q: query, order })
         .then((r) => {
           if (!alive) return;
-          // 直播位每轮都刷新;其它位置只渲染第一次,之后轮询仅更新未读计数。
+          //The live broadcast position is refreshed every round; other positions are only rendered for the first time, and subsequent polls only update the unread count.
           if (atLive || !rendered) {
             rendered = true;
             setItems(r.items);
@@ -511,7 +511,7 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
           setLoaded(true);
         })
         .catch(() => {
-          // 轮询是尽力而为:保留上一次成功的播报内容,下一轮自动重试。
+          //Polling is a best effort: the last successful broadcast content is retained and the next round is automatically retried.
         });
     void load();
     if (!live) {
@@ -537,8 +537,8 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
     setPending(0);
   };
 
-  // 服务端的 refs 只补「不在本页的邻居」,同页节点之间的引用要靠 items 自己兜底,
-  // 否则相邻两条播报互相引用时会退化成光秃秃的「节点 #id」。
+  //The server-side refs only compensate for "neighbors that are not on this page". References between nodes on the same page must be handled by items themselves.
+  //Otherwise, two adjacent reports will degenerate into bare "node #id" when they reference each other.
   const nodeIndex = React.useMemo(() => {
     const idx: Record<string, TaskNode> = { ...refs };
     for (const n of items) idx[n.id] = n;
@@ -549,12 +549,12 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
   const start = total === 0 ? 0 : (page - 1) * size + 1;
   const end = (page - 1) * size + items.length;
 
-  // 换任务或筛选后条数变少时,把越界的页码收回来。
+  //When the number of entries decreases after changing tasks or filtering, take back the out-of-bounds page numbers.
   React.useEffect(() => {
     if (page > pageCount) setPage(pageCount);
   }, [page, pageCount]);
 
-  // 按天分组:播报流按日期断行,长任务翻页时还能认出「这是哪天的事」。
+  //Grouping by day: The broadcast stream is broken by date, and you can still recognize "which day this happened" when turning pages for a long task.
   const groups: Array<{ day: string; rows: TaskNode[] }> = [];
   for (const node of items) {
     const ts = Date.parse(node.ts);
@@ -566,7 +566,7 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
 
   return (
     <Card className="overflow-hidden py-0">
-      {/* 工具条 */}
+      {/*Toolbar*/}
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
         <div className="relative w-full sm:w-64">
           <SearchIcon className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -638,7 +638,7 @@ export function BroadcastTab({ taskId }: { taskId: string }) {
         </div>
       </div>
 
-      {/* 离开直播位时的未读提示 */}
+      {/*Unread reminder when leaving the live broadcast position*/}
       {!atLive && pending > 0 && (
         <button
           type="button"

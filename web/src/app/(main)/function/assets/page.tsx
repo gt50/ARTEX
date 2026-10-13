@@ -951,8 +951,8 @@ function CompanyAvatar({ name, logo }: { name: string; logo?: string }) {
   );
 }
 
-// 后端返回的 warnings 说的是既有数据问题（不是本次提交的行有错），保存本身已经
-// 成功。给更长的停留时间，因为它需要用户去处理具体的资产，扫一眼标题不够。
+// Backend warnings describe existing data issues, not errors in the submitted rows; the save succeeded.
+// Keep them visible longer because resolving them requires the user to inspect the affected assets.
 function showScopeWarnings(warnings?: string[]) {
   for (const warning of warnings ?? []) {
     toast.warning(warning, { duration: 15000 });
@@ -971,7 +971,7 @@ function savedScopeText(company: Company): string {
     .join("\n");
 }
 
-// 新增企业使用与任务、LLM 编辑一致的右侧抽屉。
+// Use the same right-side drawer pattern as task and LLM editing.
 function CompanyDialog({ onSaved }: { onSaved: () => void }) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");

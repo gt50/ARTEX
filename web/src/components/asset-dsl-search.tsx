@@ -261,7 +261,7 @@ const KIND_STYLE: Record<string, string> = {
 };
 
 // AssetDslSearch is the shared DSL search box: a monospace input with a
-// field/operator/logic autocomplete popover and a status line ("找到 N 条" /
+//field/operator/logic autocomplete popover and a status line ("N items found" /
 // error / loading). Used by both the global asset view and the per-task view.
 export function AssetDslSearch({
   query,

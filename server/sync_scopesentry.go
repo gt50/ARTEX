@@ -13,18 +13,18 @@ import (
 	"github.com/Autumn-27/artex/mcphttp"
 )
 
-// 资产同步（ScopeSentry 数据源）。
+//Asset synchronization (ScopeSentry data source).
 //
-// ScopeSentry 是一个 ASM 资产测绘平台，通过其 MCP 接口按【项目】/【任务】两个维度
-// 拉取子域名、Web 应用、服务等资产，映射为 ARTEX 的公司 + 资产模型。数据源本身是
-// 一个名为 "ScopeSentry" 的 http 传输 MCP 行（url + X-API-Key 头保存在 mcp_servers）。
+//ScopeSentry is an ASM asset surveying and mapping platform that uses its MCP interface in two dimensions: [Project]/[Task]
+//Pull assets such as subdomain names, web applications, services, etc., and map them to ARTEX's company + asset model. The data source itself is
+//An http named "ScopeSentry" transmits the MCP line (url + X-API-Key header saved in mcp_servers).
 //
-// 与 agent 工具层不同，这里用 mcphttp.Client.Call 直接调用 MCP 工具、拿原始 JSON，
-// 不触发 AskUser 权限弹窗（后台批量同步）。
+//Different from the agent tool layer, mcphttp.Client.Call is used here to directly call the MCP tool and get the original JSON.
+//Do not trigger the AskUser permission pop-up window (background batch synchronization).
 
 const (
 	scopeSentryMCPName = "ScopeSentry"
-	syncMaxPerType     = 5000 // 单目标单类型的入库保护上限
+	syncMaxPerType     = 5000 //The upper limit of storage protection for a single target and single type
 	syncDefaultPage    = 100
 )
 
@@ -308,11 +308,11 @@ func (s *Server) syncSSRun(w http.ResponseWriter, r *http.Request) {
 			if req.CreateCompany {
 				name, roots, perr := s.ssProjectMeta(ctx, cl, target)
 				if perr != nil {
-					warnings = append(warnings, fmt.Sprintf("项目 %s 详情获取失败: %v", target, perr))
+					warnings = append(warnings, fmt.Sprintf("Project %s Failed to obtain details: %v", target, perr))
 				} else if name != "" {
 					cid, cerr := cs.UpsertByName(name)
 					if cerr != nil {
-						warnings = append(warnings, fmt.Sprintf("公司 %s 创建失败: %v", name, cerr))
+						warnings = append(warnings, fmt.Sprintf("Company %s failed to create: %v", name, cerr))
 					} else {
 						companies = append(companies, name)
 						madeCompany = true
@@ -329,16 +329,16 @@ func (s *Server) syncSSRun(w http.ResponseWriter, r *http.Request) {
 		for _, at := range req.AssetTypes {
 			ssType, ok := map[string]string{"subdomain": "subdomain", "service": "asset", "app": "app"}[at]
 			if !ok {
-				warnings = append(warnings, "未知资产类型，已跳过: "+at)
+				warnings = append(warnings, "Unknown asset type, skipped:"+at)
 				continue
 			}
 			items, truncated, ferr := s.ssPageAll(ctx, cl, ssType, filter, pageSize)
 			if ferr != nil {
-				errs = append(errs, fmt.Sprintf("%s(%s) 拉取失败: %v", at, target, ferr))
+				errs = append(errs, fmt.Sprintf("%s(%s) pull failed: %v", at, target, ferr))
 				continue
 			}
 			if truncated {
-				warnings = append(warnings, fmt.Sprintf("%s(%s) 达到 %d 条上限，已截断", at, target, syncMaxPerType))
+				warnings = append(warnings, fmt.Sprintf("%s(%s) reaches the upper limit of %d and has been truncated", at, target, syncMaxPerType))
 			}
 			for _, raw := range items {
 				if e := s.ssIngest(as, at, raw, synced); e != "" {
@@ -431,7 +431,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			IP    []string `json:"ip"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "subdomain 解析失败: " + err.Error()
+			return "Subdomain resolution failed:" + err.Error()
 		}
 		if it.Host == "" {
 			return ""
@@ -455,7 +455,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			ICP         string `json:"icp"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "app 解析失败: " + err.Error()
+			return "app parsing failed:" + err.Error()
 		}
 		if it.Name == "" {
 			return ""
@@ -477,7 +477,7 @@ func (s *Server) ssIngest(as *db.AssetStore, assetType string, raw json.RawMessa
 			Icon     string   `json:"icon"`
 		}
 		if err := json.Unmarshal(raw, &it); err != nil {
-			return "service 解析失败: " + err.Error()
+			return "Service parsing failed:" + err.Error()
 		}
 		if it.Service == "http" || it.URL != "" {
 			if it.URL == "" {

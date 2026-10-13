@@ -1,37 +1,37 @@
-// Package notify 实现漏洞发现的 IM / 邮件推送渠道适配层。
+//Package notify implements the IM/email push channel adaptation layer for vulnerability discovery.
 //
-// 分层：本包是**叶子包**，只依赖标准库。它不认识数据库、不认识 server。渠道配置
-// 以 map[string]any 传入（对应 notification_channels.config 这一 JSONB 列），
-// 待推送内容以 Message 传入。这样拆开的好处是：签名计算、UTF-8 截断、过滤匹配这些
-// 真正容易出错的地方可以脱离 PostgreSQL 单测，宿主只需在 server 侧做编排。
+//Layering: This package is a **leaf package** and only relies on the standard library. It doesn't know the database or the server. Channel configuration
+//Pass in map[string]any (corresponding to the JSONB column of notification_channels.config),
+//The content to be pushed is passed in as Message. The advantages of this separation are: signature calculation, UTF-8 truncation, filtering and matching, etc.
+//The really error-prone areas can be separated from the PostgreSQL single test, and the host only needs to perform orchestration on the server side.
 //
-// 并发约定：Channel 的实现必须**无状态**。同一个 Channel 实例会被多个渠道配置
-// （甚至同一渠道的多个机器人实例）并发复用，所有凭据一律从 cfg 参数传入，
-// 不允许把 webhook URL 之类的东西缓存进实现自身的字段。
+//Concurrency Contract: The implementation of Channel must be **stateless**. The same Channel instance will be configured by multiple channels
+//(Even multiple robot instances of the same channel) Concurrent reuse, all credentials are passed in from the cfg parameter,
+//Caching things like webhook URL into a field that implements itself is not allowed.
 package notify
 
-// 渠道类型标识。取值同时是 notification_channels.kind 的合法集合，由 server 侧
-// 白名单校验（与 findings.status 同理，不用 DB CHECK，方便后续加渠道）。
+//Channel type identifier. The value is also a legal set of notification_channels.kind, which is determined by the server side.
+//Whitelist verification (same as findings.status, no need for DB CHECK, convenient for adding channels later).
 const (
-	KindDingTalk = "dingtalk" // 钉钉自定义机器人
-	KindFeishu   = "feishu"   // 飞书(含 Lark)自定义机器人
-	KindWeCom    = "wecom"    // 企业微信群机器人
-	KindWebhook  = "webhook"  // 通用 Webhook：自定义方法/头/JSON 模板
+	KindDingTalk = "dingtalk" //DingTalk custom robot
+	KindFeishu   = "feishu"   //Feishu (including Lark) custom robot
+	KindWeCom    = "wecom"    //Enterprise WeChat group robot
+	KindWebhook  = "webhook"  //Universal Webhook: Custom method/header/JSON template
 	KindTelegram = "telegram" // Telegram Bot API
-	KindEmail    = "email"    // SMTP 邮件
+	KindEmail    = "email"    //SMTP mail
 )
 
-// 事件类型，对应 notification_events.kind。
+//Event type, corresponding to notification_events.kind.
 const (
 	EventFindingCreated       = "finding_created"
 	EventFindingStatusChanged = "finding_status_changed"
 )
 
-// InitKind 是 config 里为空的 kind 的兜底值。
+//InitKind is the bottom value of kind that is empty in config.
 const InitKind = KindDingTalk
 
-// severityRank 把漏洞级别映射成可比较的序数。未知级别返回 0，因此任何
-// min_severity 设置都会把未知级别挡在外面——存疑时不推，避免误报刷屏。
+//severityRank maps vulnerability levels into comparable ordinal numbers. Unknown level returns 0, so any
+//The min_severity setting will keep unknown levels out - do not push when in doubt to avoid false positives and screen swiping.
 var severityRank = map[string]int{
 	"low":      1,
 	"medium":   2,
@@ -39,7 +39,7 @@ var severityRank = map[string]int{
 	"critical": 4,
 }
 
-// SeverityRank 返回级别的序数；未知级别返回 0。
+//SeverityRank returns the ordinal number of the level; 0 is returned for unknown levels.
 func SeverityRank(severity string) int { return severityRank[severity] }
 
 // SeverityLabel returns an English severity label with an emoji for message titles.
@@ -85,8 +85,8 @@ func StatusLabel(status string) string {
 	}
 }
 
-// AtLeast 判断 severity 是否达到 min 门槛。min 为空表示不设门槛，一律通过。
-// 注意未知 severity 的序数为 0，会被任何非空 min 拒掉（见 severityRank 注释）。
+//AtLeast determines whether severity reaches the min threshold. If min is empty, it means there is no threshold and all will pass.
+//Note that unknown severity has an ordinal of 0 and will be rejected by any non-empty min (see severityRank comment).
 func AtLeast(severity, min string) bool {
 	if min == "" {
 		return true

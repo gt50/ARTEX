@@ -38,12 +38,12 @@ export default function SystemSettingsPage() {
   const [pyInterp, setPyInterp] = React.useState("");
   const [workers, setWorkers] = React.useState("3");
   const [savingWorkers, setSavingWorkers] = React.useState(false);
-  // 操作约束注入范围(默认都开)。
+  //Operational constraint injection scope (both enabled by default).
   const [injectPlanner, setInjectPlanner] = React.useState(true);
   const [injectWorker, setInjectWorker] = React.useState(true);
-  // 实验功能:noa 上下文压缩(默认关)。
+  //Experimental feature: noa context compression (off by default).
   const [noaCompaction, setNoaCompaction] = React.useState(false);
-  // 纯前端偏好：不走 /api/settings，直接读写 localStorage。
+  //Pure front-end preference: do not go to /api/settings, read and write localStorage directly.
   const sendMode = useChatSendMode();
 
   const apply = React.useCallback((s: Settings) => {
@@ -261,10 +261,10 @@ export default function SystemSettingsPage() {
         <p className="text-muted-foreground text-sm">Global runtime settings</p>
       </div>
 
-      {/* 多列而非 grid：网络搜索卡片比其余高数倍，且高度随所选后端变化（brave/tavily
-          的 key 输入是条件渲染）。grid 会按最高的一张撑满整行、在旁边留下大片空白，
-          多列则自动按内容高度平衡填充。卡片间距靠 mb 而非 gap——多列布局下
-          column-gap 只管列间距，行间距要由子元素自己给。 */}
+      {/*Multiple columns instead of grid: the web search card is several times taller than the rest, and the height varies with the selected backend (brave/tavily
+          The key input is conditional rendering). grid will fill the entire row with the tallest one, leaving a large blank space next to it.
+          Multiple columns are automatically filled in a balanced manner according to content height. Card spacing depends on mb instead of gap - under multi-column layout
+          column-gap only takes care of the column spacing, and the row spacing must be given by the child elements themselves.*/}
       <div className="columns-1 gap-4 md:gap-6 lg:columns-2">
         <UpdateCard />
 

@@ -519,7 +519,7 @@ export default function ToolsPage() {
   );
 }
 
-// ---- 自定义工具编辑器 ----
+//---- Custom tool editor ----
 
 type ExecState = {
   command: string;
