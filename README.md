@@ -14,7 +14,7 @@ Autonomous penetration testing system (Go backend + Next.js frontend)
 
 ## Screenshots
 
-Explore the [live demo](https://artex-demo.mhtsec.com), a frontend-only demo powered by mock data.
+Explore the [live demo](https://artex-demo.mhtsec.com), a frontend-only demo powered by mock data. The screenshots below show the English interface with demo data.
 
 | Dashboard | Tasks |
 | :---: | :---: |

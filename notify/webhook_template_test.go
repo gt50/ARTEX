@@ -32,7 +32,7 @@ func TestTemplateContextHasNoMethods(t *testing.T) {
 				names = append(names, typ.Method(i).Name)
 			}
 			t.Fatalf("%s exposes %d methods (%s): text/template can call them,"+
-				"等于把这些方法的能力开放给了模板作者", typ.Name(), n, strings.Join(names, ", "))
+				" which exposes those capabilities to template authors", typ.Name(), n, strings.Join(names, ", "))
 		}
 	}
 }
@@ -50,7 +50,7 @@ func TestTemplateFuncsAreMinimal(t *testing.T) {
 	want := []string{"json", "jsons"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("The set of template functions changed: got %v, expected %v. Before adding a new function, please confirm that it will not expand the capabilities."+
-			"（不能读写文件、不能发起网络请求、不能执行命令）", got, want)
+			" (no file access, network requests, or command execution)", got, want)
 	}
 }
 

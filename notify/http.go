@@ -171,7 +171,7 @@ func doJSON(ctx context.Context, method, url string, headers map[string]string, 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return raw, nil
 	}
-	//429 (current limiting) and 408 (timeout) are worth retrying; the remaining 4xx are configuration or permission issues, and retrying is meaningless.
+	//429 (rate limiting) and 408 (timeout) are worth retrying; the remaining 4xx are configuration or permission issues, and retrying is meaningless.
 	if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode == http.StatusRequestTimeout {
 		return nil, fmt.Errorf("remote service rate-limited or timed out (HTTP %d): %s", resp.StatusCode, snippet(raw))
 	}

@@ -238,7 +238,7 @@ ON CONFLICT (agent_id, var_name) DO UPDATE
 	}
 	// Drop catalog entries for variables that were renamed, so the white-list no
 	// longer advertises a name templates can't resolve (EngagementTitle→Description).
-	//After 'Now' is promoted from each agent directory to a global runtime variable, there is still one 'Now' for goals in the old library
+	//After 'Now' is promoted from each agent directory to a global runtime variable, there is still one 'Now' for goals in the existing database
 	//It will collide with the global item name (the front-end variable list key is repeated); it will be cleared together.
 	if _, err := d.Exec(`DELETE FROM agent_prompt_vars WHERE var_name IN ('EngagementTitle', 'CoverageGaps', 'Now')`); err != nil {
 		return fmt.Errorf("cleanup renamed vars: %w", err)

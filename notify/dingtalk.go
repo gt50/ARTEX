@@ -18,7 +18,7 @@ import (
 //
 //Platform features (which determine the implementation choices here):
 //- The current limit for a single robot is 20 messages/minute, and excessive messages will be silently discarded (HTTP may still be 200).
-//Therefore, current limiting must be done on the client side, see DefaultRatePerMin.
+//Therefore, rate limiting must be done on the client side, see DefaultRatePerMin.
 //- Choose one of three security settings: signature / custom keyword / IP whitelist. Signing is the only thing that does not depend on
 //Message content scheme, so only signatures are supported (naked webhooks that do not open any of the three are also supported).
 //- HTTP 200 is returned for success/failure, distinguished by the errcode in the body - errcode is not checked

@@ -114,7 +114,7 @@ func TestRecordKeepsBodiesInIndex(t *testing.T) {
 func TestFullTextSearchMatchesBodies(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.fts {
-		t.Skip("驱动未启用 FTS5")
+		t.Skip("The database driver does not enable FTS5")
 	}
 	const host = "api.example.com"
 	tr.record(newFlow(host, "POST", "/v1/login",
@@ -156,7 +156,7 @@ func TestFullTextSearchMatchesBodies(t *testing.T) {
 func TestLargeBodySpillsButStaysSearchable(t *testing.T) {
 	tr, dir := openTraffic(t)
 	if !tr.fts {
-		t.Skip("驱动未启用 FTS5")
+		t.Skip("The database driver does not enable FTS5")
 	}
 	const host = "dump.example.com"
 	const marker = "DB_PASSWORD=hunter2"
@@ -241,7 +241,7 @@ func TestLargeBodySpillsButStaysSearchable(t *testing.T) {
 func TestBinaryBodyStaysOutOfIndex(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.fts {
-		t.Skip("驱动未启用 FTS5")
+		t.Skip("The database driver does not enable FTS5")
 	}
 	const host = "cdn.example.com"
 	const marker = "SECRETINIMAGE"
@@ -355,7 +355,7 @@ func TestGCCollectsBlobsAndEmptyBuckets(t *testing.T) {
 func TestPageSearchesBodies(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.fts {
-		t.Skip("驱动未启用 FTS5")
+		t.Skip("The database driver does not enable FTS5")
 	}
 	tr.record(newFlow("api.example.com", "POST", "/v1/login", nil, []byte(`{"error":"invalid credentials"}`)))
 	tr.record(newFlow("api.example.com", "GET", "/v1/health", nil, []byte(`{"status":"ok"}`)))

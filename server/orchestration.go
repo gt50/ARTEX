@@ -472,7 +472,7 @@ func (s *Server) deriveTaskStatus(t *Task) string {
 // agents). First-insert only, like the traffic seeds.
 func (s *Server) seedOrchestrationTools() {
 	//task-op + platform tools default-bind to the built-in Auto agent
-	//operating platform). The first insertion of SeedTool takes effect; rows that have been seeded in the old library are supplemented by seedAutoDefaultBindings.
+	//operating platform). The first insertion of SeedTool takes effect; rows that have been seeded in the existing database are supplemented by seedAutoDefaultBindings.
 	autoAgents, _ := json.Marshal([]string{"auto"})
 	for _, t := range s.orchestrationTools() {
 		schema, _ := json.Marshal(t.InputSchema())
@@ -495,10 +495,10 @@ func (s *Server) seedOrchestrationTools() {
 	s.seedWorkerReadbackRebind()  //Fix accidental deletion of old migration: bind search_all_worker_traces/get_worker_trace/node_detail back to worker (one-time)
 	s.seedAutoReportFindingBinding()
 	s.unbindGoalMetDefault()
-	s.reseedGoalsPrompt()             //The goals prompt word is added to the "pumping operation constraint" step → a new default version is added to the old library (one-time)
-	s.reseedMainAgentPrompt()         //The mainagent prompt word is added "add_intent asks whether to create a goal after the goal is achieved" (one-time)
+	s.reseedGoalsPrompt()             //The goals prompt is added to the "extracting operational constraints" step → a new default version is added to the existing database (one-time)
+	s.reseedMainAgentPrompt()         //The mainagent prompt is added "add_intent asks whether to create a goal after the goal is achieved" (one-time)
 	s.reseedPlannerPrompt()           //Planner prompt: rewrite "0 intention" justification + add quantitative acceptance check (one-time)
-	s.reseedWorkerPrompt()            //worker prompt word: add negative conclusion evidence threshold (one-time)
+	s.reseedWorkerPrompt()            //worker prompt: add negative conclusion evidence threshold (one-time)
 	s.seedReporterAgent()             //Preset "report writing" agent + tool binding + finding trigger (one-time)
 	s.upgradeReporterTriggerMessage() //Migration of old database: let reporter return evidence_version (one-time)
 	s.seedFindingTrafficTools()       //Added optional evidence parameters and read-only evidence tools, retaining user configurations
@@ -526,11 +526,11 @@ func (s *Server) refreshBuiltinToolSchemas() {
 		}
 	}
 	//At the same time, some built-in agent tools are refreshed as code defaults:
-	//- goal_met: The description of the old library seed is misleading with "end this round of planning", which will make the planner regard it as
+	//- goal_met: The description of the existing database seed is misleading with "end this round of planning", which will make the planner regard it as
 	//The method of "ending empty rounds" and misjudgment that the entire mission was completed as soon as the run started.
 	//- insert_assets: Add related input parameter (mark whether the asset is related to the current task and determine whether to enter coverage),
-	//SeedTool is first inserted only if the schema of the old library has been seeded, otherwise this new parameter will not be received.
-	//- list_facts: changed to paging, added limit/before/q input parameters; the old library has been seeded with an empty schema, otherwise
+	//SeedTool is first inserted only if the schema of the existing database has been seeded, otherwise this new parameter will not be received.
+	//- list_facts: changed to paging, added limit/before/q input parameters; the existing database has been seeded with an empty schema, otherwise
 	//"No parameters" is displayed on the tool management page, and the model cannot obtain these parameter descriptions.
 	refreshBuiltin := map[string]bool{"goal_met": true, "insert_assets": true, "list_facts": true}
 	for _, sd := range agent.BuiltinToolSeeds() {
@@ -563,8 +563,8 @@ func (s *Server) unbindGoalMetDefault() {
 	_ = s.m.pg.SetSetting(flag, "true")
 }
 
-//reseedGoalsPrompt Refresh the prompt word of the goals goal disassembler to [current code default] - because the default text is added
-//"First extract the operation constraints (set_constraints) and then split the target" step, and SeedPromptIfEmpty is first inserted into only, the old library
+//reseedGoalsPrompt Refresh the prompt of the goals goal disassembler to [current code default] - because the default text is added
+//"First extract the operation constraints (set_constraints) and then split the target" step, and SeedPromptIfEmpty is first inserted into only, the existing database
 //The existing version 1 cannot receive this step. Use version management here [Add a new version] and switch to it (ResetPromptToDefault),
 //The old version is still retained in the history. If the user has customized it, it can be retrieved from the version record. settings flag guard → do it only once;
 //In the future, the default will be to bump this flag. Brand new libraries do not need to be processed (SeedPromptIfEmpty has been seeded by default).
@@ -576,27 +576,27 @@ func (s *Server) reseedGoalsPrompt() {
 	defer func() { _ = s.m.pg.SetSetting(flag, "true") }() //Only try once whether successful or not
 	a, err := s.m.pg.GetAgentByKey("goals")
 	if err != nil || a == nil {
-		return //When the new library has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
+		return //When the new database has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
 	}
 	tmpl := agent.BuiltinPromptSeeds()["goals"]
 	if tmpl == "" {
 		return
 	}
-	//The new library seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
+	//The new database seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
 	if cur, err := s.m.pg.CurrentPrompt(a.ID); err == nil && cur == tmpl {
 		return
 	}
 	if _, err := s.m.pg.ResetPromptToDefault(a.ID, tmpl); err != nil {
-		log.Printf("[prompts] goals prompt word refresh failed by default: %v", err)
+		log.Printf("[prompts] goals prompt refresh failed by default: %v", err)
 		return
 	}
-	log.Printf("[prompts] A new default version of the goals prompt word has been added (adding the pumping operation constraint step, one-time)")
+	log.Printf("[prompts] A new default version of the goals prompt has been added (adding the extracting operational constraints step, one-time)")
 }
 
-//reseedMainAgentPrompt Refresh the mainagent prompt word to [current code default] - the default text has added "Target All
+//reseedMainAgentPrompt Refresh the mainagent prompt to [current code default] - the default text has added "Target All
 //After achieving the add_intent direct investment intention, ask the person whether to register as an official target" this guidance, and SeedPromptIfEmpty is first inserted
-//Only, existing versions of the old library cannot be received. Use version management [Add a new version] and switch over (ResetPromptToDefault), the old version is still
-//It is retained in the history. If the user has customized it, it can be retrieved from the version record. settings flag guard → Do this only once. Brand new library does not need to be processed
+//Only, existing versions of the existing database cannot be received. Use version management [Add a new version] and switch over (ResetPromptToDefault), the old version is still
+//It is retained in the history. If the user has customized it, it can be retrieved from the version record. settings flag guard → Do this only once. Brand new database does not need to be processed
 //(SeedPromptIfEmpty has seeded latest default). Completely isomorphic to reseedGoalsPrompt.
 func (s *Server) reseedMainAgentPrompt() {
 	const flag = "mainagent_prompt_goalless_intent_v1"
@@ -606,26 +606,26 @@ func (s *Server) reseedMainAgentPrompt() {
 	defer func() { _ = s.m.pg.SetSetting(flag, "true") }() //Only try once whether successful or not
 	a, err := s.m.pg.GetAgentByKey("mainagent")
 	if err != nil || a == nil {
-		return //When the new library has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
+		return //When the new database has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
 	}
 	tmpl := agent.BuiltinPromptSeeds()["mainagent"]
 	if tmpl == "" {
 		return
 	}
-	//The new library seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
+	//The new database seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
 	if cur, err := s.m.pg.CurrentPrompt(a.ID); err == nil && cur == tmpl {
 		return
 	}
 	if _, err := s.m.pg.ResetPromptToDefault(a.ID, tmpl); err != nil {
-		log.Printf("[prompts] mainagent prompt word refresh failed by default: %v", err)
+		log.Printf("[prompts] mainagent prompt refresh failed by default: %v", err)
 		return
 	}
-	log.Printf("[prompts] The mainagent prompt word has been added with a new default version (added to ask to create the goal after the goal is achieved, one-time)")
+	log.Printf("[prompts] The mainagent prompt has been added with a new default version (added to ask to create the goal after the goal is achieved, one-time)")
 }
 
-//reseedPlannerPrompt Refresh the planner prompt word to [current code default] - the default text has been streamlined and restructured, and "restraint" has been downgraded to
+//reseedPlannerPrompt Refresh the planner prompt to [current code default] - the default text has been streamlined and restructured, and "restraint" has been downgraded to
 //Only duplicates are removed, "depth takes precedence over coverage" and "hard bottom line: the goal must be produced if the goal is not achieved and there is no intention to run", and a bound is added to the review of negative conclusions.
-//Every time there is a substantial change to the default, bump the flag below (currently v2) to let the existing old library refresh again. SeedPromptIfEmpty is first inserted only. The existing version of the old library cannot be received, so version management is used.
+//Every time there is a substantial change to the default, bump the flag below (currently v2) to let the existing existing database refresh again. SeedPromptIfEmpty is first inserted only. The existing version of the existing database cannot be received, so version management is used.
 //[Add a new version] and switch to it (ResetPromptToDefault). The old version is still retained in the history. If the user has customized it, he can record it from the version.
 //retrieve. settings flag guard → Do this only once. Brand new libraries do not need to be processed (SeedPromptIfEmpty has been seeded by default). and
 //reseedGoalsPrompt is completely isomorphic.
@@ -637,27 +637,27 @@ func (s *Server) reseedPlannerPrompt() {
 	defer func() { _ = s.m.pg.SetSetting(flag, "true") }() //Only try once whether successful or not
 	a, err := s.m.pg.GetAgentByKey("planner")
 	if err != nil || a == nil {
-		return //When the new library has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
+		return //When the new database has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
 	}
 	tmpl := agent.BuiltinPromptSeeds()["planner"]
 	if tmpl == "" {
 		return
 	}
-	//The new library seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
+	//The new database seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
 	if cur, err := s.m.pg.CurrentPrompt(a.ID); err == nil && cur == tmpl {
 		return
 	}
 	if _, err := s.m.pg.ResetPromptToDefault(a.ID, tmpl); err != nil {
-		log.Printf("[prompts] Refreshing planner prompt word to new one fails by default: %v", err)
+		log.Printf("[prompts] Refreshing planner prompt to new one fails by default: %v", err)
 		return
 	}
-	log.Printf("[prompts] A new default version has been added to the planner prompt word (simplified reconstruction + restrained downgrade and deduplication + depth priority + negative review upper bound, one-time)")
+	log.Printf("[prompts] A new default version has been added to the planner prompt (simplified reconstruction + restrained downgrade and deduplication + depth priority + negative review upper bound, one-time)")
 }
 
-//reseedWorkerPrompt refreshes the worker prompt word to [current code default] - the default text record_fact section deletes the "negative conclusion"
+//reseedWorkerPrompt refreshes the worker prompt to [current code default] - the default text record_fact section deletes the "negative conclusion"
 //Write the entire sentence "observation + tentative reading", and decouple confidence (observed/inferred) from "whether the original intention and means have been exhausted" (these are easy to mislead planners),
-//At the same time, the facts array is tightened into a few exceptions that are "completely independent of each other and cannot be merged". Bump flag to v3 to refresh the existing old library.
-//SeedPromptIfEmpty is first inserted only. The existing version of the old library cannot be received, so use version management [Add a new version] and cut it. The old version will still be retained in the history and can be retrieved.
+//At the same time, the facts array is tightened into a few exceptions that are "completely independent of each other and cannot be merged". Bump flag to v3 to refresh the existing existing database.
+//SeedPromptIfEmpty is first inserted only. The existing version of the existing database cannot be received, so use version management [Add a new version] and cut it. The old version will still be retained in the history and can be retrieved.
 //settings flag guard → Do this only once. Brand new libraries require no processing. Completely isomorphic to reseedGoalsPrompt.
 func (s *Server) reseedWorkerPrompt() {
 	const flag = "worker_prompt_compact_v4"
@@ -667,21 +667,21 @@ func (s *Server) reseedWorkerPrompt() {
 	defer func() { _ = s.m.pg.SetSetting(flag, "true") }() //Only try once whether successful or not
 	a, err := s.m.pg.GetAgentByKey("worker")
 	if err != nil || a == nil {
-		return //When the new library has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
+		return //When the new database has not yet created an agent line, seedPrompts will directly seed the latest default, without this migration.
 	}
 	tmpl := agent.BuiltinPromptSeeds()["worker"]
 	if tmpl == "" {
 		return
 	}
-	//The new library seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
+	//The new database seedPrompts has been seeded and the latest default → the current version is equal to the code default, no need to add duplicate versions.
 	if cur, err := s.m.pg.CurrentPrompt(a.ID); err == nil && cur == tmpl {
 		return
 	}
 	if _, err := s.m.pg.ResetPromptToDefault(a.ID, tmpl); err != nil {
-		log.Printf("[prompts] Refreshing worker prompt word to new default fails: %v", err)
+		log.Printf("[prompts] Refreshing worker prompt to new default fails: %v", err)
 		return
 	}
-	log.Printf("[prompts] A new default version has been added to the worker prompt word (the context segment converges to list_assets/list_findings, and list_facts/node_detail/asset_neighbors is removed, one-time)")
+	log.Printf("[prompts] A new default version has been added to the worker prompt (the context segment converges to list_assets/list_findings, and list_facts/node_detail/asset_neighbors is removed, one-time)")
 }
 
 //reporterToolCallMessage must unconditionally require get_finding_traffic to be read once before writing the report.
@@ -701,7 +701,7 @@ const reporterToolCallMessageV1 = "A vulnerability has just been registered by r
 	"(The tool returns the number in \"finding recorded: <id>\") and the task id. Write a detailed report of the vulnerability according to your responsibilities." +
 	"Finally call update_finding_report(finding_id, report) to save."
 
-//upgradeReporterTriggerMessage refreshes the reporter trigger message that still has the default copy in the old library to a new version.
+//upgradeReporterTriggerMessage refreshes the reporter trigger message that still has the default copy in the existing database to a new version.
 //seedReporterAgent is guarded by reporter_agent_seed_v1 and only writes triggers when creating a new agent, so
 //The upgraded library cannot get new copy - the tool schema is completed by seedFindingTrafficTools
 //evidence_version, but nothing tells the reporter to use it. It is a one-time operation and only covers unmodified copy.

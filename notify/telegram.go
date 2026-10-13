@@ -29,7 +29,7 @@ func (telegramChannel) DefaultRatePerMin() int { return 20 }
 //Bot Token is a complete credential; chat_id is just the recipient, not a secret (if you get it, you can't send a message without the Token).
 func (telegramChannel) SecretKeys() []string { return []string{"bot_token"} }
 
-//base_url determines which API endpoint the Token is sent to (such as a self-built reverse generation). If you change it, you must re-state the Token.
+//base_url determines which API endpoint the Token is sent to (such as a self-built reverse proxy). If you change it, you must re-state the Token.
 func (telegramChannel) DestinationKeys() []string { return []string{"base_url"} }
 
 func (telegramChannel) Validate(cfg map[string]any) error {
@@ -77,7 +77,7 @@ func (c telegramChannel) Send(ctx context.Context, cfg map[string]any, m Message
 	if res.OK {
 		return kept, nil
 	}
-	//429 is current limiting, and retrying after backing off is valid; the rest (400 parameter error, 401 token error, 403 blacklisted,
+	//429 is rate limiting, and retrying after backing off is valid; the rest (400 parameter error, 401 token error, 403 blacklisted,
 	//404 chat does not exist) are all configuration issues, and retrying will not heal itself.
 	if res.ErrorCode == 429 {
 		return 0, fmt.Errorf("Telegram rate limit: %s", res.Description)
@@ -86,7 +86,7 @@ func (c telegramChannel) Send(ctx context.Context, cfg map[string]any, m Message
 }
 
 //telegramEndpoint spells out the sendMessage address. When base_url is left blank, use the official API.
-//When it is not empty, it is used to build the self-built Bot API reverse generation (a common requirement under domestic networks).
+//When it is not empty, it is used to build the self-built Bot API reverse proxy (a common requirement under domestic networks).
 func telegramEndpoint(cfg map[string]any) (string, error) {
 	base := cfgString(cfg, "base_url")
 	if base == "" {

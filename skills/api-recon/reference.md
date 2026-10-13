@@ -164,6 +164,7 @@ Field description:
 ### B1. Double stub template (role_permissions + permissions/all)
 
 ```json
+{
 "stubs": [
   {
     "match": "role_permissions",
@@ -191,6 +192,7 @@ Field description:
     }
   }
 ]
+}
 ```
 
 The outer field name (`response_code` / `code` / `data`) must be consistent with the A2 interceptor gate; `permissions` must cover all leaf codes in the tree.
@@ -241,9 +243,9 @@ Browser hooks supported by preload (coverage mode) and runtime_harvest (depth mo
 | Hook XHR.setRequestHeader | Discover Authorization and other headers | ✅ `observe.xhrHeaders` |
 | Hook localStorage/cookie read | Confirm session key name | ⚠️ Optional `observe.storageReads/cookieReads` |
 | Extract Vue routes | Complete the frontend route list | ✅ `__API_RECON_ROUTES__` (route loaded) |
-| Vue route guard neutralization / login jump blocking | Render modules to trigger API requests | ✅ `neutralizeVueRouter` + native jump neutralization |
+| Vue route guard neutralization / login redirect blocking | Render modules to trigger API requests | ✅ `neutralizeVueRouter` + native redirect blocking |
 | Extract React routes | Supplement the route list | ⚠️ Static + click; no dedicated Hook |
-| Page jump blocking (login path) | Keep the page available for analysis | ⚠️ Only block the login path to avoid blocking business navigation |
+| Page redirect blocking (login path) | Keep the page available for analysis | ⚠️ Only block the login path to avoid blocking business navigation |
 | Hook encryption library (CryptoJS/SM, etc.) | Inspect request parameters before encryption | ❌ Manually hook the encryption function and record the findings in the configuration |
 | Anti-debugging bypass | Otherwise, the runtime cannot record the API | ❌ Must be processed manually; static is still available |
 
@@ -270,7 +272,7 @@ grep -rhoaE '/api/[a-zA-Z0-9_./-]+' js | sort -u
 | Enter the shell but the module is blank | Content gate → mock the menu (A3); `routes` path may be wrong |
 | Each route only has bootstrap/locale | Incomplete permission code → Section I permission tree restoration; check `role_permissions` + `permissions/all` double stub |
 | There are items in the sidebar but the subpage is blank | The tree is missing the intermediate node or the code is inconsistent with `userRouteAuth` |
-| Each API jumps to login | Interceptor gate → Confirm `neutralize`; nested fields need to expand walk logic |
+| Every API response redirects to login | Interceptor gate → Confirm `neutralize`; nested fields need to expand walk logic |
 | No WebSocket frames | User interaction is required before subscribe; lengthened `perRouteMs` |
 | The response body is empty | Only `forward: true` has a real response |
 | Chromium is missing | Install chromium or set up `config.chromium` / `CHROMIUM` |
@@ -321,7 +323,7 @@ grep -l 'routeMap\|routeLink' js/*.js
 grep -rhoaE 'getResultTree|role_permissions|permissions/all' js | head
 ```
 
-Records: **Permission API path**, **Response field name**, **Consumption chunk file name**.
+Record the **permission endpoint path**, **response field names**, and **bundle chunk that consumes the response**.
 
 ### I2. Extract routeMap
 
@@ -330,7 +332,7 @@ python3 scripts/extract_route_map.py recon/js recon/
 # Output recon/route_map.json
 ```
 
-If `[!] no routeMap pattern found`: Relax the regular rules in `extract_route_map.py`, or manually grep:
+If the script reports `[!] no routeMap pattern found`, broaden the regex in `extract_route_map.py` or inspect the bundle with grep:
 
 ```bash
 grep -rhoaE '([A-Z_][A-Z0-9_]*):\{name:"[^"]*",link:"/[^"]+"\}' js | head -20
@@ -347,7 +349,7 @@ Script logic:
 2. Use `route_map.json` to parse alias → real path
 3. Infer parent according to code prefix (`MONITOR_ALERT` → `MONITOR`)
 4. Output `permissions_tree.json`, `permissions_all_stub.json`, `role_permissions_stub.json`
-5. `--config` automatically writes `stubs` and extension `routes` of `config.json`
+5. `--config` updates `stubs` and extends `routes` in `config.json`
 
 **Adjust by Target** (at top of script):
 - `DEFAULT_ROOTS`: top module code list
@@ -359,7 +361,7 @@ Script logic:
 ```bash
 # The number of permissions should ≈ the number of userRouteAuth entries
 wc -l recon/perm_codes_all.txt
-# routes should override route_map all link
+# routes should include every link in route_map
 python3 -c "import json; m=json.load(open('recon/route_map.json')); r=set(json.load(open('recon/config.json'))['routes']); print('missing', [v['link'] for v in m.values() if v['link'] not in r])"
 ```
 
@@ -389,7 +391,7 @@ node recon/runtime_harvest.js recon/config.json
 
 **Methodology rather than a universal script.** Find paths with regular expressions. Infer parameters by expanding the context around endpoint anchors, tracing UI bindings, comparing multiple samples, and inspecting error responses.
 
-### J1. Anchor point window expansion — find package objects from path
+### J1. Inspect code around endpoint paths to find payload objects
 
 ```bash
 # Take the known path of Phase 1 as the anchor
@@ -399,7 +401,7 @@ grep -rhoaE '(params|data|body|payload)\s*:\s*\{' js | head
 grep -rhoaE '(get|post|put|delete|patch)\([^,]+,\s*\{' js | head
 ```
 
-### J2. Packaging layer and transmission form
+### J2. Request layers and transport formats
 
 ```bash
 # axios / unification request
@@ -434,7 +436,7 @@ grep -rhoaE 'onFinish|handleSubmit|getFieldsValue|validateFields' js | head
 grep -rhoaE '(pick|omit|transform|dayjs|moment)\(' js | head
 ```
 
-Runtime complement: DevTools → Network → Request → **Initiator** (call stack) chases the package function from `fetch`/`send` upwards.
+For runtime confirmation, open DevTools → Network → Request → **Initiator** and trace the call stack back from `fetch` or `send` to the function that constructs the request.
 
 ### J5. Encryption parameters
 
@@ -442,7 +444,7 @@ Runtime complement: DevTools → Network → Request → **Initiator** (call sta
 grep -rhoaE 'encrypt|decrypt|sign|CryptoJS|sm2|sm3|sm4|RSA|AES' js | head
 ```
 
-**Do not guess the fields on the ciphertext** — Hook encryption function **inputs parameters** and records the plaintext payload before encryption; the conclusion is written as `config.json` / `param_candidates.json`.
+Inspect the encryption function's **input parameters** to record the plaintext payload. Ciphertext alone does not reveal its fields. Save the findings in `config.json` and `param_candidates.json`.
 
 ### J6. Parameter trigger matrix (must do in Phase 3)
 
@@ -465,36 +467,36 @@ Output `param_samples.json`: `[{ "path", "method", "action": "search", "body", "
 |---|---|
 | **High** | Static callsite + runtime ≥2 samples consistent |
 | **Medium** | Static only, or only 1 runtime |
-| **Low** | Response/error backcast, no secondary verification |
+| **Low** | Inferred from responses or errors without independent confirmation |
 | **To be triggered** | Static known fields, UI/permissions have not been reached |
 
-### J8. Quick scene matching
+### J8. Workflows by API pattern
 
-| Scene | Sequence |
+| API pattern | Sequence |
 |---|---|
-| REST list page | J1 package object → J6 four times diff → J3 rules |
+| REST list page | J1 payload object → J6 compare four request samples → J3 validation rules |
 | New/edit form | J3 Form name → J4 submit chain → runtime submission + intentionally left blank to see 400 |
 | GraphQL | J2 variables declaration → runtime operation record variables |
-| Encrypted body | J5 Hook input parameters → The fields before encryption are real params |
+| Encrypted body | J5 inspect encryption inputs → record the plaintext fields |
 
-### J9. Mapping with api-recon stage
+### J9. Map parameter analysis to reconnaissance phases
 
 | api-recon | parameter recon |
 |---|---|
-| Phase 1 static | J1 anchor point window expansion |
+| Phase 1 static | J1 inspect code around endpoint anchors |
 | Phase 2 A2 interceptor | Global injection fields (tenantId, sign) |
 | Phase 3 runtime | J6 trigger matrix + `param_samples.json` |
 | Phase 4 Permission Tree | Different modules have different forms → All fields must be triggered only if the permissions are sufficient |
-| Phase 5 Merge | `params_merged.json` + Confidence; Do not use a single sample and must be filled in |
+| Phase 5 Merge | `params_merged.json` with confidence levels; required status needs more than one sample |
 
 ### J10. Troubleshooting
 
 | Phenomenon | Treatment |
 |---|---|
-| The static field name runtime never appears | Mark "to be triggered"; make up the permission tree / click advanced filter / linkage to select each option |
+| A field found statically never appears at runtime | Mark it as pending; restore permissions, open advanced filters, and exercise dependent options |
 | Same path but different body shape | Normal - separate records according to `action`, do not forcibly merge schema |
-| The stub response is false but you want to see params | **Look at the outbound request** body/headers, do not infer from the stub response |
-| 400 reported nested field | Pay attention to the outer packaging `data`/`bizData`/`variables` |
+| Mocked responses do not reveal the request parameters | **Look at the outbound request** body/headers, do not infer from the stub response |
+| 400 reported nested field | Inspect wrappers such as `data`, `bizData`, or `variables` |
 | GraphQL only sees operation name | Expand `variables` JSON; statically find `$var: Type` |
 
 ---

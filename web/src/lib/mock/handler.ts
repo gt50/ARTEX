@@ -1012,6 +1012,13 @@ export async function mockHandle<T>(method: string, rawPath: string, body?: Body
 function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Record<string, unknown>): unknown {
   const task = q.get("task") ?? undefined;
 
+  if (path === "/notify/meta" && m === "GET") return structuredClone(D.notificationMeta);
+  if (path === "/notify/channels" && m === "GET") return { channels: [] };
+  if (path === "/notify/deliveries" && m === "GET") return { deliveries: [], total: 0 };
+  if (path.startsWith("/notify/") && m !== "GET") {
+    throw new Error("Notification editing and delivery require a backend; demo mode is read-only");
+  }
+
   if (path === "/chat/mentions" && m === "GET") {
     const kind = q.get("kind") ?? "";
     const query = (q.get("q") ?? "").trim().toLowerCase();
@@ -1475,7 +1482,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
           },
         };
       }
-      //False deletion (default): Set deleted + to record the deletion reason and retain the node.
+      //Soft deletion (default): Set deleted + to record the deletion reason and retain the node.
       intent.state = "deleted";
       intent.delete_reason = String(b.reason ?? "");
       return { id: numId, state: "deleted" };

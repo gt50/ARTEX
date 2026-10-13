@@ -354,7 +354,7 @@ func (s *Server) saveLLMConfig(cfg agent.Config) error {
 	//(max_tokens / max_tokens_field) is silently reset to zero.
 	var priority int
 	var poolExclude bool
-	streaming := true //Old library/new default streaming
+	streaming := true //Existing database/new default streaming
 	var maxTokens int
 	var maxTokensField string
 	var sessionHeaderKey string
@@ -1159,7 +1159,7 @@ func (s *Server) controlIntent(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Action string `json:"action"`
 		Reason string `json:"reason"` //Required when canceling (delete): Reason for deletion
-		Mode   string `json:"mode"`   //cancel exclusive: soft (default, false deletion) | hard (true deletion, cascade removal of exclusive descendants)
+		Mode   string `json:"mode"`   //cancel exclusive: soft (default, soft deletion) | hard (hard deletion, cascade removal of exclusive descendants)
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, "bad json: "+err.Error())

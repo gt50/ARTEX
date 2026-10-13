@@ -424,7 +424,7 @@ func sameProviderRetryPolicy(r agent.RetryConfig) (retries int, backoff func(int
 }
 
 //isRetryableStreamError determines whether "stream failure before submission" is worth replaying on the same provider.
-//Transient transmission interruption/provider overload/current limiting will recover on its own and can be safely retried; the following three categories will not be retried:
+//Transient transmission interruption/provider overload/rate limiting will recover on its own and can be safely retried; the following three categories will not be retried:
 //- Quota exhausted: leave it to profile failover, don’t try again in vain.
 //- The context is too long: it is useless to replay the same request, leaving it to harness's reactive compression.
 //- 4xx deterministic rejection (400/401/403/404/422): It will fail regardless of the provider.

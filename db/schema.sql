@@ -410,18 +410,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_llm_one_default ON llm_profiles(is_default)
 DROP TRIGGER IF EXISTS trg_llm_upd ON llm_profiles;
 CREATE TRIGGER trg_llm_upd BEFORE UPDATE ON llm_profiles
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
---Polling order/exclusion flag; replenishing old library. Default 0 / false = all configurations participate in polling.
+--Polling order/exclusion flag; replenishing existing database. Default 0 / false = all configurations participate in polling.
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS priority     INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS pool_exclude BOOLEAN NOT NULL DEFAULT false;
---Streaming switch; replenish the old library. Default true = maintain the existing streaming behavior, and old configurations will be upgraded silently.
+--Streaming switch; replenish the existing database. Default true = maintain the existing streaming behavior, and old configurations will be upgraded silently.
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS streaming    BOOLEAN NOT NULL DEFAULT true;
---Release the format constraint to accommodate openai-responses (OpenAI Responses API); patch the old library.
+--Release the format constraint to accommodate openai-responses (OpenAI Responses API); patch the existing database.
 --Each time it is started and executed, it is idempotent: the old CHECK is deleted first and then a new CHECK containing three values ​​is created.
 ALTER TABLE llm_profiles DROP CONSTRAINT IF EXISTS llm_profiles_format_check;
 ALTER TABLE llm_profiles ADD  CONSTRAINT llm_profiles_format_check
     CHECK (format IN ('openai','anthropic','openai-responses'));
 
---Output the upper limit and its field names; fill in the old library. Default 0 / '' = do not send the upper limit, use the max_tokens field name,
+--Output the upper limit and its field names; fill in the existing database. Default 0 / '' = do not send the upper limit, use the max_tokens field name,
 --The behavior of the old configuration is completely unchanged.
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS max_tokens       INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS max_tokens_field TEXT    NOT NULL DEFAULT '';
@@ -432,12 +432,12 @@ ALTER TABLE llm_profiles ADD  CONSTRAINT llm_profiles_max_tokens_field_check
 ALTER TABLE llm_profiles DROP CONSTRAINT IF EXISTS llm_profiles_max_tokens_check;
 ALTER TABLE llm_profiles ADD  CONSTRAINT llm_profiles_max_tokens_check
     CHECK (max_tokens >= 0);
---Customize the session header name; fill in the old library. Default '' = do not send, old configuration behavior remains unchanged.
+--Customize the session header name; fill in the existing database. Default '' = do not send, old configuration behavior remains unchanged.
 ALTER TABLE llm_profiles ADD COLUMN IF NOT EXISTS session_header_key TEXT NOT NULL DEFAULT '';
 
 --Single configuration retry coverage (see docs/LLMRetryDesign.md). Each of the three groups has a pair of "reps + fixed intervals",
 --Unified semantics: times 0=inherit the global default, -1=close the layer and try again, >0=use this value; interval 0=inherit the layer's
---Default exponential backoff, >0=use this fixed number of milliseconds instead. All default to 0, so old library/old configuration behavior is unchanged.
+--Default exponential backoff, >0=use this fixed number of milliseconds instead. All default to 0, so existing database/old configuration behavior is unchanged.
 --connect = Retry to establish a connection (SDK doStream: connection reset/timeout/429/5xx, before the stream starts)
 --empty = retry with empty response (SDK: completed without any content block, openai format only)
 --stream = Same as provider safe window retry (this project task_llm: stream replay before output is delivered)
@@ -538,11 +538,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)          WHERE dele
 DROP TRIGGER IF EXISTS trg_tasks_upd ON tasks;
 CREATE TRIGGER trg_tasks_upd BEFORE UPDATE ON tasks
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
---Planner heartbeat trigger interval (seconds); supplement the old library. Default 300s(5min). See docs/planner-trigger-impl-plan.md
+--Planner heartbeat trigger interval (seconds); supplement the existing database. Default 300s(5min). See docs/planner-trigger-impl-plan.md
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS plan_heartbeat_seconds INTEGER NOT NULL DEFAULT 300;
---The concurrency limit is suspended; the old library is supplemented. true=queuing due to the concurrency limit, waiting for space to start automatically.
+--The concurrency limit is suspended; the existing database is supplemented. true=queuing due to the concurrency limit, waiting for space to start automatically.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS queued BOOLEAN NOT NULL DEFAULT false;
---Asset coverage function switch; replenish the old library. true (default) = calculate/display test coverage, automatically accumulate test scope,
+--Asset coverage function switch; replenish the existing database. true (default) = calculate/display test coverage, automatically accumulate test scope,
 --Open add_task_scope/list_untested_assets for agents; false=close all (see task_scope.go).
 --The default behavior of existing tasks is true; the company association (task_scope kind=company) is not affected by this switch.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS coverage_enabled BOOLEAN NOT NULL DEFAULT true;
@@ -551,7 +551,7 @@ ALTER TABLE tasks ADD COLUMN IF NOT EXISTS coverage_enabled BOOLEAN NOT NULL DEF
 -- exploration that already owns goals/history.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS queued_at TIMESTAMPTZ;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS queue_mode TEXT NOT NULL DEFAULT '';
---Optional task name; patch old library. Empty string = unnamed, falls back to the description when displayed on the front end.
+--Optional task name; patch existing database. Empty string = unnamed, falls back to the description when displayed on the front end.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES task_categories(id) ON DELETE SET NULL;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;
@@ -623,7 +623,7 @@ CREATE TABLE IF NOT EXISTS task_templates (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
---Supplement the old library (released version, add columns with IF NOT EXISTS).
+--Supplement the existing database (released version, add columns with IF NOT EXISTS).
 ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES task_categories(id) ON DELETE SET NULL;
 ALTER TABLE task_templates ADD COLUMN IF NOT EXISTS intercept_rules JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS idx_task_templates_updated ON task_templates(updated_at DESC, id DESC);
@@ -761,7 +761,7 @@ CREATE INDEX IF NOT EXISTS idx_ts_net     ON task_scope USING GIST(net inet_ops)
 CREATE INDEX IF NOT EXISTS idx_ts_company ON task_scope(company_id) WHERE kind = 'company';
 
 -- =====================================================================
---E. Agents/Prompt Word Template/Variable Directory
+--E. Agents/Prompt Template/Variable Directory
 -- =====================================================================
 CREATE TABLE IF NOT EXISTS agents (
     id                BIGSERIAL PRIMARY KEY,
@@ -1067,7 +1067,7 @@ CREATE TABLE IF NOT EXISTS intercept_pending (
 );
 CREATE INDEX IF NOT EXISTS idx_intercept_pending_status ON intercept_pending(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_intercept_pending_task   ON intercept_pending(task_id, created_at DESC);
---Complementing the old library: reason column (already released, add column with IF NOT EXISTS).
+--Complementing the existing database: reason column (already released, add column with IF NOT EXISTS).
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT '';
 -- Detail payloads are lazy-loaded; NULL preserves the meaning of legacy history.
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS audit JSONB;

@@ -186,7 +186,7 @@ type TaskNodeDTO struct {
 	TS           string `json:"ts"`
 	SourceTaskID string `json:"source_task_id,omitempty"`
 	Inherited    bool   `json:"inherited,omitempty"`
-	DeleteReason string `json:"delete_reason,omitempty"` //Reason for deletion when false deletion is intended (state='deleted')
+	DeleteReason string `json:"delete_reason,omitempty"` //Reason for deletion when soft deletion is intended (state='deleted')
 }
 
 func taskNodeDTO(n *db.Node) TaskNodeDTO {

@@ -197,7 +197,7 @@ func renderTriggers(ts *db.ExplorationStore, evs []TriggerEvent) string {
 		case "finding":
 			b.WriteString(fmt.Sprintf("\n- The Worker for intent #%d (%s) reported a finding: %s", ev.IntentID, intentSummary(ts, ev.IntentID), ev.Detail))
 		case "cancelled":
-			//The intent content is given priority by using the summary captured during deletion (the node no longer exists after true deletion, and intentSummary cannot be found).
+			//The intent content is given priority by using the summary captured during deletion (the node no longer exists after hard deletion, and intentSummary cannot be found).
 			sm := ev.Summary
 			if sm == "" {
 				sm = intentSummary(ts, ev.IntentID)

@@ -79,7 +79,7 @@ var relCache = &releaseCache{}
 //get returns the latest Release. If the cache is hit, the network will not be accessed.
 //
 //The lock is held during the retrieval period: concurrent requests will be queued up to wait for the results of one query, instead of going to GitHub individually.
-//(When the page is first loaded, multiple tabs are checked at the same time, which is the most likely time to trigger current limiting).
+//(When the page is first loaded, multiple tabs are checked at the same time, which is the most likely time to trigger rate limiting).
 func (c *releaseCache) get(ctx context.Context, client *http.Client, force bool) (*selfupdate.Release, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -266,7 +266,7 @@ func (s *Server) updateCheck(w http.ResponseWriter, r *http.Request) {
 //updateApply downloads and temporarily stores the new version. After completion, the process exits and is restarted by the daemon script.
 //
 //202 is returned immediately, and the actual work is run on the background goroutine: it may take several minutes to download the entire package.
-//Hanging on the request will be interrupted by the reverse generation timeout. The progress goes to /api/update/stream.
+//Hanging on the request will be interrupted by the reverse proxy timeout. The progress goes to /api/update/stream.
 func (s *Server) updateApply(w http.ResponseWriter, r *http.Request) {
 	current := BuildVersion
 

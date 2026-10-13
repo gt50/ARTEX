@@ -342,7 +342,7 @@ export const api = {
     intentId: string,
     action: "pause" | "resume" | "cancel",
     reason?: string,
-    //cancel Special: soft (default, false deletion, intent to set deleted + record deletion reason) | hard (true deletion, cascade removal of exclusive descendants).
+    //cancel Special: soft (default, soft deletion, intent to set deleted + record deletion reason) | hard (hard deletion, cascade removal of exclusive descendants).
     mode?: "soft" | "hard",
   ) =>
     post<{
@@ -1038,7 +1038,7 @@ export const api = {
   saveAgentPrompt: (key: string, template: string, note = "") =>
     put<{ version: number }>(`/agents/${key}/prompt`, { template, note }),
   resetAgentPrompt: (key: string) => post<{ version: number }>(`/agents/${key}/prompt/reset`, {}),
-  //Ending prompt word (settlement prompt for timeout/exhausted steps); prompt empty string = clear override, use built-in default;
+  //Ending prompt (settlement prompt for timeout/exhausted steps); prompt empty string = clear override, use built-in default;
   //If max_turns is omitted, it will not move and pass 0 = use the built-in default number of rounds.
   saveAgentWrapup: (key: string, prompt: string, maxTurns?: number) =>
     put<{ ok: boolean }>(`/agents/${key}/wrapup`, { prompt, max_turns: maxTurns }),

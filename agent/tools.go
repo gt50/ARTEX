@@ -427,7 +427,7 @@ func (t *ToolSet) graphOverviewData() map[string]any {
 	out["running_intents"] = compactIntents(running, parentsOf, yieldsOf)
 	//done_intents_total: Total number of ended intentions (done/blocked/exhausted), same as recent_done_intents
 	//Parallel naming - the latter is just a truncated view of its latest window. The two keys side by side are self-describing: "What you see is N/total number",
-	//When asking the planner to remove duplicates, don't treat "not shown" as "not sent". There is no need to explain it in the prompt word.
+	//When asking the planner to remove duplicates, don't treat "not shown" as "not sent". There is no need to explain it in the prompt.
 	if dt, err := t.ts.CountFinishedIntents(); err == nil {
 		out["done_intents_total"] = dt
 	}

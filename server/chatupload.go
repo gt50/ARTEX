@@ -27,7 +27,7 @@ type chatAttachment struct {
 	Path string `json:"path"`
 	Size int64  `json:"size"`
 	//Abs is the absolute path to the disk (m.dir is already absolute). The front end needs to use it when staging (scope=staging) before building a task.
-	//The prompt word is written into the description; task/session uses composeAgentMessage to spell the path in the backend and does not rely on this field.
+	//The prompt is written into the description; task/session uses composeAgentMessage to spell the path in the backend and does not rely on this field.
 	Abs string `json:"abs,omitempty"`
 }
 

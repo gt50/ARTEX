@@ -263,7 +263,7 @@ const (
 	settingWorkers     = "workers"
 	settingLLMRecord   = "llm_record"
 	//LLM polling (failover). Off by default - after turning it on, go to the "Global Activation Configuration" agent in the current configuration
-	//Automatically switches to the next configuration when it is unavailable (insufficient balance/key invalid/current limiting/service abnormality).
+	//Automatically switches to the next configuration when it is unavailable (insufficient balance/key invalid/rate limiting/service abnormality).
 	//settingLLMPoolBindFallback is only meaningful when polling is turned on: off by default, that is, agent/task explicit
 	//If a certain configuration is bound, just use it. If it fails, it will fail; if the bound configuration fails after it is enabled, it will fall back to the polling chain.
 	settingLLMPoolOn           = "llm_pool_enabled"

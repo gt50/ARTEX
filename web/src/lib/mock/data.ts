@@ -26,6 +26,7 @@ import type {
   MCPServer,
   MCPTool,
   MissingSkill,
+  NotificationMeta,
   PromptVar,
   PromptVersion,
   SessionTokenUsage,
@@ -46,6 +47,23 @@ import type {
 } from "@/lib/types";
 
 const T = (iso: string) => iso; // readability helper for timestamps
+
+// The notification page needs the complete metadata shape even with no channels.
+export const notificationMeta: NotificationMeta = {
+  kinds: [
+    { kind: "dingtalk", default_rate_per_min: 20, secret_keys: ["webhook", "secret"] },
+    { kind: "email", default_rate_per_min: 60, secret_keys: ["password"] },
+    { kind: "feishu", default_rate_per_min: 100, secret_keys: ["webhook", "secret"] },
+    { kind: "telegram", default_rate_per_min: 20, secret_keys: ["bot_token"] },
+    { kind: "webhook", default_rate_per_min: 0, secret_keys: ["url", "headers"] },
+    { kind: "wecom", default_rate_per_min: 20, secret_keys: ["webhook"] },
+  ],
+  enabled: false,
+  public_base_url: "",
+  digest_interval_min: "30",
+  defaults: { digest_interval_min: 30 },
+  stats: { channels: 0, channels_on: 0, pending: 0, failed: 0, sent_today: 0, backlog_age_ms: 0 },
+};
 
 // ── Tasks ──────────────────────────────────────────────────────────────────
 export const ACTIVE_TASK = "t-acme-web";

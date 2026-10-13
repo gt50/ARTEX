@@ -16,7 +16,7 @@ func noaWarn(session string) func(string) {
 
 //noa is the "model-driven context compression" mechanism introduced by norma v0.4.0. As a platform experimental function, users can
 //Switch in system settings. It is mutually exclusive with the built-in compaction: noaadapter.Enable is the only entry, once mounted
-//The context takeover (Compactor), Compress tool and three resident prompt words will be closed if Enable is not called.
+//The context takeover (Compactor), Compress tool and three resident prompts will be closed if Enable is not called.
 //(Built-in compaction works as usual). The switch is parsed by noaEnabledFn injected by each agent, read every run
 //Once, the switch only affects subsequent runs and does not require rebuilding the agent.
 

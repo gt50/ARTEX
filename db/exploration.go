@@ -439,7 +439,7 @@ func (s *ExplorationStore) CancelIntent(id int64) (IntentCleanup, error) {
 	}
 	defer tx.Rollback()
 
-	//The lock intent line is confirmed to exist (idempotent: not found if deleted). The status is not verified - true deletion is true for any status,
+	//The lock intent line is confirmed to exist (idempotent: not found if deleted). The status is not verified - hard deletion is true for any status,
 	//The running worker is stopped first by the caller.
 	if err := tx.QueryRow(`SELECT 1 FROM exploration_nodes
 		WHERE id=$1 AND exploration_id=$2 AND kind='intent' FOR UPDATE`, id, s.expID).Scan(new(int)); err != nil {

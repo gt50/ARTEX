@@ -450,7 +450,7 @@ type Agent struct {
 	RunSecs          int    `json:"run_seconds"`       //The upper limit of wall clock for a single worker run (seconds); 0=no limit
 	WebSearch        bool   `json:"web_search"`        //Whether to enable network search (gated by the system global switch)
 	InteractiveShell bool   `json:"interactive_shell"` //Whether to enable interactive shell (persistent PTY session tool family)
-	WrapupPrompt     string `json:"wrapup_prompt"`     //Closing prompt word (settlement prompt when timeout/steps are exhausted); empty = use code Built-in default
+	WrapupPrompt     string `json:"wrapup_prompt"`     //Closing prompt (settlement prompt when timeout/steps are exhausted); empty = use code Built-in default
 	WrapupMaxTurns   int    `json:"wrapup_max_turns"`  //The round budget of the closing phase itself; 0 = built-in default with code (by agent)
 	//Task-level timeout ending word (double set with per-run; only used by worker/planner); empty/0=use code Built-in default.
 	TaskTimeoutWrapupPrompt   string `json:"task_timeout_wrapup_prompt"`
@@ -643,7 +643,7 @@ func (d *DB) SetAgentWebSearch(key string, on bool) error {
 }
 
 // SetAgentInteractiveShell toggles whether an agent gets the interactive shell
-//(Persistent PTY session) tool family + Bash prompt word linkage (see docs/interactive shell design.md §14.2).
+//(Persistent PTY session) tool family + Bash prompt linkage (see docs/interactive shell design.md §14.2).
 func (d *DB) SetAgentInteractiveShell(key string, on bool) error {
 	_, err := d.Exec(`UPDATE agents SET interactive_shell=$1 WHERE key=$2`, on, key)
 	return err

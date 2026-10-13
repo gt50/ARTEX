@@ -67,7 +67,7 @@ func readAll(t *testing.T, path string) string {
 func requireUnix(t *testing.T) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		t.Skip("假二进制用的是 sh 脚本，Windows 上跑不了")
+		t.Skip("The fake executable is an sh script and cannot run on Windows")
 	}
 }
 
@@ -314,7 +314,7 @@ func TestParseSums(t *testing.T) {
 
 func TestExtractBinaryFindsNestedEntry(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("包内基名在 Windows 上是 artex.exe，此用例按 Unix 命名构造")
+		t.Skip("The archive executable is named artex.exe on Windows; this case uses Unix naming")
 	}
 	dir := t.TempDir()
 	zipPath := filepath.Join(dir, "release.zip")

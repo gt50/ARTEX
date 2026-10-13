@@ -94,7 +94,7 @@ Reconnaissance is complete only when all applicable criteria are satisfied:
 |---|---|---|
 | After Phase 0 is completed | Next entry Bash = `python3 OUTDIR/harvest_static.py <URL> OUTDIR` | curl/grep/Read main entry `index-*.js` (usually >500KB) |
 | Review gate A | Copy the script → Make minor changes as needed → **Run immediately** | Manually extract the API first and then decide whether to harvest |
-| Before Phase 1 is completed | `wc -l` verification output; 404 change harvest and try again | Handwritten extract script; grep repeatedly for undownloaded URLs |
+| Before Phase 1 is completed | `wc -l` verification output; adjust the harvest script for 404 responses and rerun | Write a replacement extraction script or repeatedly grep URLs that were never downloaded |
 | Phase 1b onwards | grep `OUTDIR/js/*.js` only | use main bundle instead of harvest |
 
 - ✅ Copy `harvest_static.py` → (optional) change regex → **Run now**
@@ -107,10 +107,10 @@ Reconnaissance is complete only when all applicable criteria are satisfied:
 
 | Constraints | Description |
 |---|---|
-| Large files | >100KB `index-*.js` **Disabled** Read/grep into context; batch with OUTDIR script |
+| Large files | Do not load or grep bundles larger than 100 KB into the conversation; process them in batches with a script in OUTDIR |
 | grep output | Must be `\| head -20` or `-m 5`; only the path summary is retained in the dialogue, do not paste the bundle fragment |
 | Verification | Use `wc -l`, `ls \| wc -l`; do not Read the entire directory |
-| Preliminary exploration of regex | Optional, ≤1 times, only ≤50KB small chunk or HTML; formal static is subject to harvest |
+| Preliminary exploration of regex | Optional: one preliminary search in HTML or a chunk no larger than 50 KB. Use the harvest script for the full static analysis. |
 | reference | For recipes/templates/troubleshooting, see [reference.md](reference.md), do not repeat inline full text |
 
 ---
@@ -124,7 +124,7 @@ Phase 0 Classification + OUTDIR
 → Phase 2 Authentication gates → config.json
 → Review gate B → Phase 3 Runtime + Parameter Matrix
 → Phase 4 permission tree (if necessary) → Rerun Phase 3
-→ Phase 5 merged report + insert_assets batch inserts all discovered services and endpoint api assets. No missing assets are allowed when inserting in any case.
+→ Phase 5: merge results, write the report, and use insert_assets to record every discovered service and API endpoint.
 ```
 
 Check in order; **Do not enter the next phase until the previous item is completed**.
@@ -145,13 +145,13 @@ Check in order; **Do not enter the next phase until the previous item is complet
 Pull the entry HTML and **create `OUTDIR`** (do not change `scripts/` in the skill):
 
 - **SPA**: empty shell + `<div id=app>` + chunk → Phase 1–5
-- **MPA**: SSR + `<form>`, no endpoint bundle → after access control A:
+- **MPA**: SSR + `<form>`, no endpoint bundle → after review gate A:
 
 ```bash
 python3 recon/spider_mpa.py <BASE_URL> <OUTDIR> [--cookie "session=..."] [--max 300] [--depth 5] [--exclude "logout|delete|destroy"]
 ```
 
-Output `forms.txt`, `links.txt`, `api_inline.txt`. SPA if forms ≈ 0 → switch to Phase 1.
+Outputs: `forms.txt`, `links.txt`, and `api_inline.txt`. If almost no forms are found and the site is an SPA, switch to Phase 1.
 
 ---
 
@@ -163,21 +163,21 @@ Observe [Scripts and review gates](#scripts-and-review-gates) · [Tools and outp
 python3 recon/harvest_static.py <BASE_URL> <OUTDIR>
 ```
 
-Harvest: parse HTML script → webpack/Vite manifest → download all lazy chunk → output `js/`, `api_static.txt`, `routes.txt`, `chunkmap.txt`.
+The harvest script extracts script references from HTML, parses webpack/Vite manifests, downloads lazy-loaded chunks, and writes `js/`, `api_static.txt`, `routes.txt`, and `chunkmap.txt`.
 
 ```bash
 wc -l OUTDIR/api_static.txt OUTDIR/routes.txt
 ls OUTDIR/js | wc -l
 ```
 
-- Number of chunks vs manifest: 404 needs to be changed to harvest and try again. Do not manually curl chunks one by one.
-- `api_static.txt` is too few → relax the endpoint patterns in OUTDIR and rerun (see reference)
+- Compare the downloaded chunk count with the manifest. For 404 errors, adjust the harvest script and rerun it; avoid downloading individual chunks manually.
+- Too few endpoints in `api_static.txt` → relax the endpoint patterns in OUTDIR and rerun (see reference)
 
 ### Phase 1b — Parameter inference
 
 Paths come from Phase 1; discover parameter fields separately. See [Tools and output constraints](#tools-and-output-constraints) for grep rules.
 
-**Completion Standard**: Important interfaces can be answered - field name, transmission location, type inference, whether it is required, sample value, confidence level.
+**Completion criteria:** For each important endpoint, record parameter names, transport locations, inferred types, required/optional status, sample values, and confidence levels.
 
 #### 1b.0 — Transmission form
 
@@ -194,7 +194,7 @@ Output: Each interface is labeled `transport: query|json|form|graphql|encrypted`
 
 #### 1b.1 — Expand the context window around endpoint anchors
 
-Using the known path as the anchor, expand the window to find the package object:
+Use a known endpoint path as an anchor and inspect the surrounding code to find the request payload:
 
 ```bash
 grep -n '"/api/user/list"' OUTDIR/js/*.js | head -20
@@ -202,15 +202,15 @@ grep -rhoaE '.{0,120}("/api[^"]+").{0,200}' OUTDIR/js/*.js | head -20
 grep -rhoaE '(params|data|body|payload)\s*:\s*\{' OUTDIR/js/*.js | head -20
 ```
 
-| Packaging layer | Parameter clues |
+| Request layer | Parameter clues |
 |---|---|
 | axios instance | `data` / `params` |
-| Unified request | Interceptor injection into global fields |
+| Shared request wrapper | Fields added by interceptors |
 | OpenAPI Client | Generate method signature |
 | React Query / SWR | hook second parameter |
 | Vue composable | composable input parameters |
 
-Type residue: `yup`/`zod`/rules, `Form.Item name=`, embedded Swagger.
+Additional type clues: `yup`, `zod`, validation rules, `Form.Item name=`, and embedded Swagger definitions.
 
 → `param_candidates.json`：`{ path, fields[], source: "static-callsite", confidence }`
 
@@ -286,9 +286,9 @@ Complete review gate B and follow the [required scope limits](#required-scope-li
 
 | Layer | Scope | Purpose |
 |---|---|---|
-| L1 precise | auth/authority/bootstrap stub | Pass first screen authentication |
-| L2 negative correction | All JSON responses | Unregistered code → Success |
-| L3 pocket | `/api` that missed L1, etc. | Empty success body, open UI |
+| L1 targeted stubs | Authentication, permission, and bootstrap endpoints | Render the initial authenticated page |
+| L2 status correction | All JSON responses | Convert unauthenticated status values to success |
+| L3 fallback | API requests not covered by L1 | Return empty successful responses so the UI can render |
 
 - **depth**: fake auth + `forward` change business code + `stubs`; traverse `routes` (hash/history); output `runtime_api.json`
 - **coverage**: **document-start** injects `preload.js` (CDP `addScriptToEvaluateOnNewDocument` or Userscript)
@@ -319,7 +319,7 @@ node runtime_harvest.js config.json
 | New/Edit | Complete entity |
 | Batch/Export/Sort | `ids[]`, `exportType`, `sortField` |
 
-**outbound body/headers are still true under stub** - subject to request. Record → `scan_raw.json`, `param_samples.json`, `api_detail.json`.
+**Mocked responses do not change the outbound request bodies or headers.** Record the actual requests in `scan_raw.json`, `param_samples.json`, and `api_detail.json`.
 
 - **Vue**: `neutralizeVueRouter: true` + document-start preload
 - **React**: `routes.txt` + sidebar click + `pushState`
@@ -335,8 +335,8 @@ node runtime_harvest.js config.json
 |---|---|
 | Entering the shell successfully | Rendering and interceptor gates passed |
 | Sidebar missing items/clicks are blank | stub shape or incomplete permission code |
-| Each route API is the same and minimal | `v-if permission` failed |
-| `routes.txt` is much smaller than bundle | Must be completed from auth module |
+| Every route triggers the same small set of APIs | `v-if permission` failed |
+| `routes.txt` is much smaller than bundle | Extract missing routes from the authentication module |
 
 ```bash
 grep -rhoaE '"/api[^"]*(permission|perm|role|menu|acl)[^"]*"' OUTDIR/js/*.js | sort -u | head -30
@@ -354,7 +354,7 @@ Intermediate output: `route_map.json`, `userRouteAuth.json`, `permissions_tree.j
 
 Stub check: outer `response_code` is consistent with the interceptor gate; flat codes are aligned with tree; `routes` covers all links of `route_map`.
 
-**Rerun Phase 3** after updating `config.json`. Large SPA adjustable `waitUntil`, `routeTimeout`, `perRouteMs` (see section reference A3/I).
+**Rerun Phase 3** after updating `config.json`. For large SPAs, adjust `waitUntil`, `routeTimeout`, and `perRouteMs` (see reference Sections A3 and I).
 
 ---
 

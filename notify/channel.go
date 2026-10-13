@@ -77,7 +77,7 @@ func Kinds() []string {
 }
 
 //PermanentError marks a delivery failure that should not be retried: incorrect credentials, target rejection, invalid request body, etc.
-//Retry is only meaningful for transient failures (network jitter, current limiting, peer 5xx); for permanent failures, repeatedly back off and retry
+//Retry is only meaningful for transient failures (network jitter, rate limiting, peer 5xx); for permanent failures, repeatedly back off and retry
 //It will not succeed, and the real error will be flushed in the retry log.
 type PermanentError struct{ Err error }
 

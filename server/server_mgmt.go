@@ -496,7 +496,7 @@ func (s *Server) pgGetAgent(w http.ResponseWriter, r *http.Request) {
 		"visibility":   map[string]any{"mcp": mcp, "skill": sk},
 		"llm_profiles": llmProfiles, //Bindable LLM configuration candidate
 
-		"wrapup_prompt":            a.WrapupPrompt,                  //Saved closing prompt word (empty = use built-in default)
+		"wrapup_prompt":            a.WrapupPrompt,                  //Saved closing prompt (empty = use built-in default)
 		"wrapup_default":           agent.WrapupDefault(a.Key),      //Built-in default (for placeholder/restore default)
 		"wrapup_max_turns":         a.WrapupMaxTurns,                //Number of closing rounds saved (0=use built-in default)
 		"wrapup_max_turns_default": agent.WrapupTurnsDefault(a.Key), //Built-in default number of rounds (for "0=default N" prompt)

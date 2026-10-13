@@ -7,7 +7,7 @@ import (
 
 //LLM retry strategy: global configuration of "number of times + interval" for five-layer retries, see docs/LLM retry design.md.
 //There is a JSON value in the settings table - it is an operating parameter for the entire machine, and it is not worth opening a table for it;
-//The built-in default code is read, so the behavior when the key does not exist (new library/never configured) is exactly the same as in the era of hard-coded constants.
+//The built-in default code is read, so the behavior when the key does not exist (new database/never configured) is exactly the same as in the era of hard-coded constants.
 
 const settingLLMRetryPolicy = "llm_retry_policy"
 

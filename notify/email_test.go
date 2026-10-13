@@ -246,11 +246,11 @@ func TestEmailSendRefusesPlaintextCredentials(t *testing.T) {
 	}
 	_, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg())
 	if err == nil {
-		t.Skip("本机 DNS 解析到了本地服务器，跳过（不影响其它用例）")
+		t.Skip("Local DNS resolves to the local server; skipping this case without affecting the others")
 	}
 	// Failure to connect or being denied credentials will count as passing this assertion; the key is that the password cannot be sent out silently.
 	if !IsPermanent(err) && !strings.Contains(err.Error(), "connect") {
-		t.Logf("错误：%v（非 localhost 下未能连上属预期）", err)
+		t.Logf("Error: %v (failure to connect to a non-localhost address is expected)", err)
 	}
 }
 

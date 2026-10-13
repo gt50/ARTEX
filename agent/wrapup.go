@@ -10,8 +10,8 @@ import (
 //When [Timeout (run_seconds/MaxDuration)] is terminated, the settlement phase of the SDK will inject this prompt.
 //Let the agent first store the content that has been identified but not written back, and then output a summary to avoid unfinished work.
 //
-//The closing prompt word of each agent can be overwritten on demand in the background (save agents.wrapup_prompt). If left blank, use here
-//Built-in default. Only [prompt word text] can be edited; which tools to disable and how many rounds of budgets to end with are code fixed strategies.
+//The closing prompt of each agent can be overwritten on demand in the background (save agents.wrapup_prompt). If left blank, use here
+//Built-in default. Only [prompt text] can be edited; which tools to disable and how many rounds of budgets to end with are code fixed strategies.
 
 // WrapupOverride, if set, returns the stored wrap-up prompt for an agent key and
 // whether a non-empty one exists. Wired by the server to the agents table (like
@@ -23,7 +23,7 @@ var WrapupOverride func(agentKey string) (string, bool)
 // table. nil / ≤0 → the built-in per-agent default (wrapupTurnDefaults) is used.
 var WrapupMaxTurnsOverride func(agentKey string) (int, bool)
 
-//Built-in default closing prompt words, indexed by agent key. Workers reuse the historically hard-coded settleWrapUpPrompt
+//Built-in default closing prompts, indexed by agent key. Workers reuse the historically hard-coded settleWrapUpPrompt
 //(Defined in worker.go), planner/mainagent each has its own version; the missing one (custom agent) is the universal one.
 var wrapupDefaults = map[string]string{
 	"worker":    settleWrapUpPrompt,

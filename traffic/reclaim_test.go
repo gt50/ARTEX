@@ -74,7 +74,7 @@ func TestDeleteReclaimsIndexSpace(t *testing.T) {
 func TestReclaimMergesFTSTombstones(t *testing.T) {
 	tr, _ := openTraffic(t)
 	if !tr.fts {
-		t.Skip("驱动未启用 FTS5")
+		t.Skip("The database driver does not enable FTS5")
 	}
 	// Deleted in batches, which is what leaves tombstones spread over many
 	// segments rather than emptying the index in one shot.

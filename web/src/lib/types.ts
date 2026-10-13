@@ -421,7 +421,7 @@ export interface TaskNode {
   ts: string;
   source_task_id?: string;
   inherited?: boolean;
-  delete_reason?: string; //Reason for deletion when false deletion is intended (state='deleted')
+  delete_reason?: string; //Reason for deletion when soft deletion is intended (state='deleted')
 }
 
 //One page of the bulletin board: nodes paginated in order of creation + the edges involved in this page + the nodes at the other end of the edges (refs, indexed by id),
@@ -932,7 +932,7 @@ export interface Settings {
   task_concurrency_enabled?: boolean; //Default false
   task_concurrency_limit?: number; //Default is 5 after opening
   //LLM polling (failover). Off by default; when turned on, agents with "unspecified models" are unavailable in the current configuration.
-  //(Insufficient balance/key invalid/current limiting/service abnormality) Automatically switch to the next configuration.
+  //(Insufficient balance/key invalid/rate limiting/service abnormality) Automatically switch to the next configuration.
   llm_pool_enabled?: boolean; //Default false
   //Whether the agent/task bound to the specified configuration will also fall back to the polling chain when it fails. Default false = bound is exclusive.
   llm_pool_bind_fallback?: boolean;
@@ -1155,8 +1155,8 @@ export interface AgentDetail {
   visibility: { mcp: number[]; skill: string[] };
   //Bindable LLM configuration candidate (for "Default Model" drop-down); see agent.llm_profile_id for current binding
   llm_profiles?: { id: number; name: string; model: string; is_default: boolean }[];
-  wrapup_prompt?: string; //Saved closing prompt word (empty = use built-in default)
-  wrapup_default?: string; //Built-in default closing prompt word (placeholder/restore default)
+  wrapup_prompt?: string; //Saved closing prompt (empty = use built-in default)
+  wrapup_default?: string; //Built-in default closing prompt (placeholder/restore default)
   wrapup_max_turns?: number; //Number of closing rounds saved (0=use built-in default)
   wrapup_max_turns_default?: number; //Built-in default closing round number (for "0=default N" prompt)
   //Task-level timeout ending word (only worker/planner, this partition is displayed when task_timeout_wrapup_supported=true)
@@ -1325,7 +1325,7 @@ export interface InterceptPending {
 export interface JudgeConfig {
   enabled: boolean;
   profile_id: number; //0 = follow active/default configuration
-  prompt: string; //Determination prompt word; GET backend backfills the full text of the built-in template when it is not set
+  prompt: string; //Determination prompt; GET backend backfills the full text of the built-in template when it is not set
   timeout_seconds: number; //Model call timeout
   fail_action: "allow" | "ask" | "deny"; //Fallback when model errors/times out/cannot be parsed
   ask_timeout_seconds: number; //The approval waiting timeout after model evaluation ask is transferred to manual

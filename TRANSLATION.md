@@ -41,9 +41,9 @@ The quoted review's claim that there were no writes is qualified in [the validat
 
 ## Test data
 
-Chinese input in tests exercises Unicode byte budgets, token estimates, multilingual parsing, ICP values, legacy labels, filenames, stored messages, and archive recovery. Keep these inputs and their paired expected values consistent. Comments and test-failure messages can be translated without changing the input being tested.
+Chinese input in tests exercises Unicode byte budgets, token estimates, multilingual parsing, ICP values, legacy labels, filenames, stored messages, and archive recovery. Keep these inputs and their paired expected values consistent. Comments and test-failure messages can be translated without changing the input being tested. Read [the English fixture reference](TEST-FIXTURES.en.md) for the meaning of every remaining Chinese string and rune literal in the Go tests, plus the frontend fixture labels.
 
-The inventory below is a snapshot of Chinese-containing files after this translation pass. Counts are lines containing Chinese, not untranslated interface labels. This guide is excluded because it deliberately quotes the values it explains.
+The inventory below is a snapshot of Chinese-containing files after this translation pass. Counts are lines containing Chinese, not untranslated interface labels. This guide and the English fixture reference are excluded because they deliberately quote the values they explain.
 
 ## Inventory (2026-10-13)
 
@@ -82,7 +82,7 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 
 ### Test data and case labels
 
-68 files; 401 lines contain Chinese.
+67 files; 385 lines contain Chinese.
 
 | File | Lines |
 | --- | ---: |
@@ -121,13 +121,12 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | [norma/noa/tokenize_test.go](<norma/noa/tokenize_test.go>) | 5 |
 | [norma/noaadapter/project_test.go](<norma/noaadapter/project_test.go>) | 1 |
 | [notify/channels_test.go](<notify/channels_test.go>) | 13 |
-| [notify/email_test.go](<notify/email_test.go>) | 7 |
+| [notify/email_test.go](<notify/email_test.go>) | 5 |
 | [notify/filter_test.go](<notify/filter_test.go>) | 13 |
 | [notify/pack_test.go](<notify/pack_test.go>) | 13 |
 | [notify/redact_test.go](<notify/redact_test.go>) | 2 |
 | [notify/render_test.go](<notify/render_test.go>) | 8 |
-| [notify/webhook_template_test.go](<notify/webhook_template_test.go>) | 3 |
-| [selfupdate/selfupdate_test.go](<selfupdate/selfupdate_test.go>) | 2 |
+| [notify/webhook_template_test.go](<notify/webhook_template_test.go>) | 1 |
 | [server/assets_scope_test.go](<server/assets_scope_test.go>) | 2 |
 | [server/auth_test.go](<server/auth_test.go>) | 2 |
 | [server/chat_mentions_test.go](<server/chat_mentions_test.go>) | 18 |
@@ -141,7 +140,7 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | [server/intercept_live_test.go](<server/intercept_live_test.go>) | 8 |
 | [server/intercept_review_test.go](<server/intercept_review_test.go>) | 3 |
 | [server/mgmt_test.go](<server/mgmt_test.go>) | 2 |
-| [server/notify_api_test.go](<server/notify_api_test.go>) | 33 |
+| [server/notify_api_test.go](<server/notify_api_test.go>) | 30 |
 | [server/skill_upload_test.go](<server/skill_upload_test.go>) | 21 |
 | [server/task_llm_test.go](<server/task_llm_test.go>) | 1 |
 | [server/task_metadata_test.go](<server/task_metadata_test.go>) | 1 |
@@ -149,9 +148,9 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | [server/trigger_merge_test.go](<server/trigger_merge_test.go>) | 6 |
 | [server/update_test.go](<server/update_test.go>) | 1 |
 | [sidequestion/context_test.go](<sidequestion/context_test.go>) | 4 |
-| [traffic/reclaim_test.go](<traffic/reclaim_test.go>) | 3 |
-| [traffic/traffic_store_test.go](<traffic/traffic_store_test.go>) | 9 |
-| [traffic/upgrade_test.go](<traffic/upgrade_test.go>) | 4 |
+| [traffic/reclaim_test.go](<traffic/reclaim_test.go>) | 2 |
+| [traffic/traffic_store_test.go](<traffic/traffic_store_test.go>) | 5 |
+| [traffic/upgrade_test.go](<traffic/upgrade_test.go>) | 2 |
 | [web/src/lib/chat-mentions.test.mjs](<web/src/lib/chat-mentions.test.mjs>) | 2 |
 | [web/src/lib/legacy-system-labels.test.mjs](<web/src/lib/legacy-system-labels.test.mjs>) | 3 |
 
@@ -159,6 +158,20 @@ Developer comments and direct failure messages were translated in 44 Go test fil
 
 ## Build validation
 
-The 2026-10-13 Windows build passed with Go 1.26.3 and Node.js 22.23.3: TypeScript checking, nine frontend tests, 31 statically exported pages, and the Go binary with embedded UI. The final PostgreSQL integration run passed all 17 root-module packages using a fresh isolated database per package. The bundled Norma suite passed all 16 packages (741 passing tests, seven skips, zero failures).
+The 2026-10-13 Windows build passed with Go 1.26.3 and Node.js 22.23.3: TypeScript checking, eleven frontend tests, 31 statically exported pages, and the Go binary with embedded UI. The final PostgreSQL integration run passed all 17 root-module packages using a fresh isolated database per package. The bundled Norma suite passed all 16 packages (741 passing tests, seven skips, zero failures).
 
 The failure-repair pass added Windows write-through evidence publication while retaining directory syncing on other platforms, waited for background processes to release output files before cleanup, connected provider context-window learning, and corrected compression pacing and summary consolidation. Tests now use the current compact overview contract, current English errors, platform-appropriate shell syntax, and a portable archive-write failure fixture. Regression checks cover publication failures, cadence scaling, the usage threshold, and summary consolidation.
+
+## Visual and runtime audit
+
+All 13 README screenshots were recaptured from the English frontend with demo data. The author banner now reads “WeChat Search”; its QR payload was decoded and verified to match the original. The 24 main frontend routes rendered without Chinese text during a local demo audit. Login and setup redirect in demo mode; their source and production exports are English. The audit also repaired missing notification demo metadata and added two regression tests for its response shape and read-only behavior.
+
+A Go syntax-tree audit found and translated 16 additional diagnostic fragments, log messages, and skip reasons. Fixture inputs are retained and explained in the English reference.
+
+### Author banner provenance
+
+Saved asset: `screenshots/wx.png`. The English banner was edited with the built-in imagegen tool. Final cleanup prompt:
+
+> Clean up only the unwanted ragged black marks and distressed/noisy edges along the top and bottom of this English author banner. It should be a pristine flat digital graphic: a smooth white rounded rectangle, clean fully transparent corners and exterior, no black outline or border, no distressing, no paper texture or grain. Keep everything inside the panel unchanged, especially the exact QR code modules and center logo, the green WeChat icon, exact text 'WeChat Search' and 'SecSentry', the green panel and magnifier. QR must retain its identical scannable payload. Do not redraw its modules or alter its geometry.
+
+The result was checked visually, and both the original and translated QR codes were decoded with ZXing to confirm that their payloads match.

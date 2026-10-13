@@ -80,11 +80,11 @@ VALUES(?,'GET /x','','HTTP 200','老数据正文')`, row[0]); err != nil {
 	}
 	if entries, _ := os.ReadDir(filepath.Join(dir, "_index")); len(entries) > 3 {
 		for _, e := range entries {
-			t.Logf("_index 下: %s", e.Name())
+			t.Logf("Under _index: %s", e.Name())
 		}
 		t.Fatal("An unexpected file appears under _index. The DSN may point to another database.")
 	}
-	t.Logf("旧库 %d 字节，新版本接管后仍是同一文件", stat.Size())
+	t.Logf("The legacy database has %d bytes and remains the same file after the upgrade", stat.Size())
 
 	// 2. All historical data is visible
 	n, err := tr.Count()

@@ -226,7 +226,7 @@ func (s *Server) notifyCreateChannel(w http.ResponseWriter, r *http.Request) {
 	}
 	//Only "Field Default" applies the channel default value. Default values ​​must be decided here rather than at the db level:
 	//Only the request body can distinguish between "this field is not passed" and "0 is passed explicitly", and the meanings of the two are completely different.
-	//(The former = use default, the latter = no current limit). The db layer treats 0 as unspecified, which will make the non-current limiting configuration unreachable.
+	//(The former = use default, the latter = no current limit). The db layer treats 0 as unspecified, which will make the non-rate limiting configuration unreachable.
 	if req.RatePerMin == nil {
 		ch.RatePerMin = channel.DefaultRatePerMin()
 	}

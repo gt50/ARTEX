@@ -82,7 +82,7 @@ func newNotifyFixture(t *testing.T) *notifyFixture {
 	f := &notifyFixture{s: s, pg: pg, request: request, n: newNotifier(s), taskID: taskID, expID: task.ExpID, cleanupMark: mark}
 	t.Cleanup(func() {
 		if _, err := pg.Exec(`DELETE FROM notification_events WHERE id > $1`, f.cleanupMark); err != nil {
-			t.Logf("清理通知事件失败: %v", err)
+			t.Logf("Failed to clean up notification events: %v", err)
 		}
 	})
 	// The master switch must be on (other use cases may turn it off).
@@ -929,7 +929,7 @@ func TestDigestTickPlanDecouplesBatchSizeFromSendBudget(t *testing.T) {
 	// The explanation confused "send several messages" and "install several vulnerabilities in one batch" into one number.
 	if claimLimit <= notifyMaxSendsPerChannelPerTick {
 		t.Fatalf("The aggregate batch size %d should not be constrained by the per-round request budget %d -"+
-			"请求预算是由租约倒推的「发几次请求」，与「一批装几条漏洞」是两个量纲",
+			"the lease-derived request budget and the number of findings per batch are different quantities",
 			claimLimit, notifyMaxSendsPerChannelPerTick)
 	}
 }
@@ -944,8 +944,8 @@ func TestNotifyTickBudgetFitsWithinLease(t *testing.T) {
 	worst := time.Duration(notifyMaxSendsPerChannelPerTick) * notifySendTimeout
 	if worst >= notifyLease {
 		t.Fatalf("The worst-case elapsed time of a single channel round %v should not meet or exceed the lease %v"+
-			"（notifyMaxSendsPerChannelPerTick=%d × notifySendTimeout=%v）——"+
-			"改这三个常量中的任意一个都要同步检查另外两个",
+			" (notifyMaxSendsPerChannelPerTick=%d × notifySendTimeout=%v): "+
+			"changing any of these three constants requires checking the other two",
 			worst, notifyLease, notifyMaxSendsPerChannelPerTick, notifySendTimeout)
 	}
 }

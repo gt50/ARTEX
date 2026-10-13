@@ -149,7 +149,7 @@ func (s *Server) applyTaskControlWithCause(t *Task, action string, pauseCause er
 	return out, nil
 }
 
-//intentSummaryOf takes the summary in the intent payload, so that the deletion notification can be saved before the intent node disappears (true deletion).
+//intentSummaryOf takes the summary in the intent payload, so that the deletion notification can be saved before the intent node disappears (hard deletion).
 func intentSummaryOf(n *db.Node) string {
 	if n == nil {
 		return ""
@@ -202,9 +202,9 @@ func (s *Server) applyIntentControl(ctx context.Context, t *Task, iid int64, act
 		out.State = "open"
 	case "cancel":
 		//Deletion supports two modes:
-		//soft (default, false deletion): the intention stops at state='deleted', and the deletion reason is recorded in the delete_reason field.
+		//soft (default, soft deletion): the intention stops at state='deleted', and the deletion reason is recorded in the delete_reason field.
 		//Keep the intention nodes and all outputs/bloodlines, and no longer add facts to the graph.
-		//Hard (true deletion): Physically delete the intention and the exclusive descendant nodes "only supported by it" (cascaded to leaves) to avoid leaving
+		//Hard (hard deletion): Physically delete the intention and the exclusive descendant nodes "only supported by it" (cascaded to leaves) to avoid leaving
 		//Isolated data; shared nodes, goals, and task root facts are retained.
 		//Both modes use canceled triggers to inform the planner (intent content + deletion reason), allowing it to replan accordingly.
 		if node.State != "running" && node.State != "paused" && node.State != "open" {

@@ -536,7 +536,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
   const [controllingIntent, setControllingIntent] = React.useState<string | null>(null);
   const [cancelIntent, setCancelIntent] = React.useState<Session | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
-  //Deletion mode: soft = false deletion (default, set deleted + record reason, retain data) | hard = true deletion (cascade removal of exclusive descendants).
+  //Deletion mode: soft = soft deletion (default, set deleted + record reason, retain data) | hard = hard deletion (cascade removal of exclusive descendants).
   const [deleteMode, setDeleteMode] = React.useState<"soft" | "hard">("soft");
   const [workerMessage, setWorkerMessage] = React.useState("");
   const [workerMessageRequestId, setWorkerMessageRequestId] = React.useState("");
@@ -609,14 +609,14 @@ export function SessionsTab({ taskId }: { taskId: string }) {
           patchIntentState(session.intent_id, "open");
           toast.success(`Worker #${session.intent_id} resumed and waiting to be claimed`);
         } else if (mode === "hard") {
-          //True deletion: Intent and exclusive downstream have been physically removed, removing the row from the list.
+          //Hard deletion: Intent and exclusive downstream have been physically removed, removing the row from the list.
           patchIntentState(session.intent_id);
           const d = res.deleted;
           const extra = d ? ` (including ${d.intents} intents, ${d.facts} facts, and ${d.findings} findings)` : "";
           toast.success(`Worker #${session.intent_id} and its exclusive downstream data were permanently deleted${extra}`);
           setCancelReason("");
         } else {
-          //False deletion: Intention to set deleted, record deletion reason, retain nodes and output.
+          //Soft deletion: Intention to set deleted, record deletion reason, retain nodes and output.
           patchIntentState(session.intent_id, "deleted");
           toast.success(`Worker #${session.intent_id} deleted. The reason was recorded for the planner.`);
           setCancelReason("");
@@ -1156,7 +1156,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
     for (const node of allIntents) {
       let title = `Intent ${node.id}`;
       let parsedPayload: unknown = node.payload;
-      //False deletion: Intent state='deleted', the reason for deletion is in the independent field delete_reason.
+      //Soft deletion: Intent state='deleted', the reason for deletion is in the independent field delete_reason.
       const deleted = node.state === "deleted";
       const deleteReason = node.delete_reason ?? "";
       if (node.payload) {

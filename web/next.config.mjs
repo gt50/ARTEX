@@ -1,9 +1,9 @@
 import { fileURLToPath } from "node:url";
 
 //Static export: `NEXT_EXPORT=1 next build` produces a purely static directory to web/out, which can be directly dropped into
-//Run nginx web root directory. Development (next dev) does not set this variable, and retains /api reverse generation and hot update.
+//Run nginx web root directory. Development (next dev) does not set this variable, and retains /api reverse proxy and hot update.
 const isExport = process.env.NEXT_EXPORT === "1";
-//Vercel demo: The entire site is mocked, no backend, no need for /api reverse generation.
+//Vercel demo: The entire site is mocked, no backend, no need for /api reverse proxy.
 const isMock = process.env.NEXT_PUBLIC_MOCK === "1";
 
 /** @type {import('next').NextConfig} */

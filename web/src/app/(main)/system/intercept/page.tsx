@@ -253,7 +253,7 @@ function JudgeCard() {
     try {
       await api.interceptSetJudgeConfig(cfg);
       toast.success("Model fallback settings saved");
-      await load(); //Read back: If the prompt word is cleared, the built-in template will be backfilled.
+      await load(); //Read back: If the prompt is cleared, the built-in template will be backfilled.
     } catch (e) {
       toast.error("Save failed: " + (e as Error).message);
     } finally {
@@ -262,7 +262,7 @@ function JudgeCard() {
   }
 
   async function restorePrompt() {
-    //Clear the prompt words and save → The server will return the full text of the built-in template next time and backfill it into the input box.
+    //Clear the prompts and save → The server will return the full text of the built-in template next time and backfill it into the input box.
     setSaving(true);
     try {
       await api.interceptSetJudgeConfig({ ...cfg, prompt: "" });
@@ -335,7 +335,7 @@ function JudgeCard() {
 
       {cfg.enabled && (
         <div className="grid gap-4 lg:grid-cols-5">
-          {/*Left: Prompt word editor (direct expansion, main area)*/}
+          {/*Left: Prompt editor (direct expansion, main area)*/}
           <Card className="lg:col-span-3">
             <CardContent className="flex h-full flex-col gap-2 p-4">
               <div className="flex items-center justify-between">
