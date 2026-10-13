@@ -331,7 +331,7 @@ func (m *Manager) Workers() int {
 // SetWorkers persists the concurrent work-agent count. Values <=0 are rejected.
 func (m *Manager) SetWorkers(n int) error {
 	if n <= 0 {
-		return fmt.Errorf("workers 必须 >0")
+		return fmt.Errorf("workers must be greater than 0")
 	}
 	return m.pg.SetSetting(settingWorkers, strconv.Itoa(n))
 }
@@ -381,7 +381,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 		} else {
 			err = tr.RecoverHostDeleteStages(func(_ int64, taskID int64) (bool, error) {
 				if taskID <= 0 {
-					return false, errors.New("归档流量暂存日志缺少任务 ID")
+					return false, errors.New("archived traffic staging log is missing a task ID")
 				}
 				task, taskErr := pg.GetTask(taskID)
 				if taskErr != nil {

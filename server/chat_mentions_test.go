@@ -19,24 +19,28 @@ import (
 )
 
 func TestChatMentionParsing(t *testing.T) {
-	refs, err := parseChatMentions("分析@[漏洞#12 同名] 与 @[接口#34 GET /api] @[漏洞#12 重复] user@example.com @漏洞")
+	refs, err := parseChatMentions("Analyze @[finding#12 Duplicate] and @[endpoint#34 GET /api] @[finding#12 Duplicate] user@example.com @finding")
 	if err != nil || len(refs) != 2 || refs[0].Kind != "finding" || refs[1].ID != 34 {
 		t.Fatalf("refs=%+v err=%v", refs, err)
 	}
-	for _, msg := range []string{"@[漏洞#0]", "@[漏洞#999999999999999999999999]"} {
+	for _, msg := range []string{"@[finding#0]", "@[finding#999999999999999999999999]"} {
 		if _, err := parseChatMentions(msg); err == nil {
 			t.Fatalf("accepted %q", msg)
 		}
 	}
 	var msg strings.Builder
 	for i := 1; i <= 11; i++ {
-		fmt.Fprintf(&msg, "@[资产#%d] ", i)
+		fmt.Fprintf(&msg, "@[asset#%d] ", i)
 	}
 	if _, err := parseChatMentions(msg.String()); err == nil {
 		t.Fatal("accepted more than 10 references")
 	}
-	if actual, err := composeChatMentionMessage(nil, "普通消息 user@example.com @漏洞"); err != nil || actual != "普通消息 user@example.com @漏洞" {
+	if actual, err := composeChatMentionMessage(nil, "Plain message user@example.com @finding"); err != nil || actual != "Plain message user@example.com @finding" {
 		t.Fatalf("plain chat changed: %s %v", actual, err)
+	}
+	legacy, err := parseChatMentions("@[漏洞#12 old label]")
+	if err != nil || len(legacy) != 1 || legacy[0].Kind != "finding" || legacy[0].Name != "finding" {
+		t.Fatalf("legacy mention refs=%+v err=%v", legacy, err)
 	}
 }
 
@@ -255,10 +259,10 @@ func TestChatMentionCatalogAndContext(t *testing.T) {
 			t.Fatalf("search %s: %+v %v", kind, items, err)
 		}
 		if kind == "ip" {
-			if _, err := composeChatMentionMessage(pg, fmt.Sprintf("@[应用#%d]", id)); err == nil {
+			if _, err := composeChatMentionMessage(pg, fmt.Sprintf("@[application#%d]", id)); err == nil {
 				t.Fatal("accepted mismatched type")
 			}
-			if data, err := loadChatMention(pg, chatMentionRef{"asset", id, "资产"}); err != nil || data == nil {
+			if data, err := loadChatMention(pg, chatMentionRef{"asset", id, "asset"}); err != nil || data == nil {
 				t.Fatalf("generic asset: %v", err)
 			}
 		}

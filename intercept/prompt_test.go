@@ -19,6 +19,28 @@ func TestParseVerdict(t *testing.T) {
 	}
 }
 
+func TestParseVerdictEnglishContract(t *testing.T) {
+	for _, action := range []string{"allow", "ask", "deny"} {
+		reason := "Actual operation: Read a file; Consequence if successful: Return its contents; Matched rule: A5"
+		raw, _ := json.Marshal(map[string]string{"decision": action, "comment": reason})
+		if got := ParseVerdict(string(raw)); got.Action != action || got.Reason != reason {
+			t.Fatalf("English verdict %s: got %+v", action, got)
+		}
+	}
+	for _, reason := range []string{
+		"Actual operation: ; Consequence if successful: Return contents; Matched rule: A5",
+		"Actual operation: Read a file; Consequence if successful: ; Matched rule: A5",
+		"Actual operation: Read a file; Consequence if successful: Return contents; Matched rule: ",
+		"Actual operation: Read a file; Matched rule: A5",
+		"Actual operation: Read a file；成功后的后果：返回内容；命中规则：A5",
+	} {
+		raw, _ := json.Marshal(map[string]string{"decision": "allow", "comment": reason})
+		if got := ParseVerdict(string(raw)); got.Action != "" {
+			t.Fatalf("accepted incomplete or mixed-format verdict: %q", reason)
+		}
+	}
+}
+
 func TestParseVerdictRejectsIncompleteOrAmbiguousReplies(t *testing.T) {
 	valid := `{"decision":"allow","comment":"实际操作：读取文件；成功后的后果：返回内容；命中规则：A5"}`
 	for _, reply := range []string{

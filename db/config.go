@@ -450,9 +450,9 @@ type Agent struct {
 	RunSecs          int    `json:"run_seconds"`       // worker 单次运行墙钟上限(秒);0=不限制
 	WebSearch        bool   `json:"web_search"`        // 是否启用网络搜索(受系统全局开关门控)
 	InteractiveShell bool   `json:"interactive_shell"` // 是否启用交互式 shell(持久 PTY 会话工具族)
-	WrapupPrompt     string `json:"wrapup_prompt"`     // 收尾提示词(超时/步数耗尽时的 settlement 提示);空=用代码内置默认
-	WrapupMaxTurns   int    `json:"wrapup_max_turns"`  // 收尾阶段自身的轮数预算;0=用代码内置默认(按 agent)
-	// 任务级超时收尾词(与 per-run 两套;仅 worker/planner 用);空/0=用代码内置默认。
+	WrapupPrompt     string `json:"wrapup_prompt"`     // 收尾提示词(超时/步数耗尽时的 settlement 提示);空=用代码Built-in default
+	WrapupMaxTurns   int    `json:"wrapup_max_turns"`  // 收尾阶段自身的轮数预算;0=用代码Built-in default(按 agent)
+	// 任务级超时收尾词(与 per-run 两套;仅 worker/planner 用);空/0=用代码Built-in default。
 	TaskTimeoutWrapupPrompt   string `json:"task_timeout_wrapup_prompt"`
 	TaskTimeoutWrapupMaxTurns int    `json:"task_timeout_wrapup_max_turns"`
 	// P3 触发后处理策略(仅自定义 agent 有意义):
@@ -748,14 +748,14 @@ func (d *DB) SeedPromptIfEmpty(agentID int64, tmpl string) error {
 	if cur.Valid {
 		return nil // already seeded or user-edited → leave it
 	}
-	_, err := d.SavePrompt(agentID, tmpl, "内置默认", "system")
+	_, err := d.SavePrompt(agentID, tmpl, "Built-in default", "system")
 	return err
 }
 
 // ResetPromptToDefault appends the code-default template as a new version and
-// points current at it — the explicit "恢复为内置默认" action.
+// points current at it — the explicit "Restored built-in default" action.
 func (d *DB) ResetPromptToDefault(agentID int64, tmpl string) (int, error) {
-	return d.SavePrompt(agentID, tmpl, "恢复为内置默认", "system")
+	return d.SavePrompt(agentID, tmpl, "Restored built-in default", "system")
 }
 
 // SavePrompt appends a new version and points current_prompt_id at it.

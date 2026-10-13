@@ -27,7 +27,7 @@ type Filter struct {
 // ParseFilter 解析渠道过滤配置。
 //
 // **永不返回 error。** 这是刻意的设计选择：过滤条件配置畸形时一律退化为零值
-// Filter（= 不过滤 = 全部命中），因为对一个漏洞通知系统来说，**多推一条远好过
+// Filter（= 不过滤 = 全部命中），因为对一个Finding notification系统来说，**多推一条远好过
 // 静默漏掉一条高危**。让解析失败变成「不推送」，等于给用户一个看起来配好了、
 // 实际什么都不推的渠道——这是最糟的失败模式。
 func ParseFilter(raw []byte) Filter {
@@ -61,7 +61,7 @@ func ValidMinSeverity(s string) bool {
 // 这样历史数据里已经存在的坏值不会让渠道整个读不出来。
 func (f Filter) Validate() error {
 	if !ValidMinSeverity(f.MinSeverity) {
-		return fmt.Errorf("最低级别 %q 无效，可选：low / medium / high / critical，或留空表示不限", f.MinSeverity)
+		return fmt.Errorf("invalid minimum severity %q; choose low / medium / high / critical, or leave empty for no limit", f.MinSeverity)
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ import (
 // 两者的父子优先级规则必须保持一致,改一处请对照 task_scope.go 改另一处。
 // ---------------------------------------------------------------------------
 
-// FindingUnassignedAsset 是「未关联资产」的节点 key,也是列表接口的筛选哨兵:
+// FindingUnassignedAsset 是「No linked assets」的节点 key,也是列表接口的筛选哨兵:
 // 命中 asset_ids 为空、或所指资产已被删除的发现。
 const FindingUnassignedAsset = "__none__"
 
@@ -46,7 +46,7 @@ type FindingAssetNode struct {
 }
 
 // FindingAssetTree 是整棵树的一次性快照。Nodes 已排好序:同一父节点下按发现数
-// 降序、标签升序,「未关联资产」恒在最后。
+// 降序、标签升序,「No linked assets」恒在最后。
 type FindingAssetTree struct {
 	Nodes        []FindingAssetNode `json:"nodes"`
 	FindingTotal int                `json:"finding_total"`
@@ -182,7 +182,7 @@ FROM findings f LEFT JOIN tasks t ON f.task_id = t.id`+where, args...)
 
 	// 计数:一条发现沿它每个资产的祖先链向上,收集去重后的 key 集合再逐个 +1,
 	// 所以父节点不会因为一条发现挂了多个子资产而重复计数。
-	unassigned := &FindingAssetNode{Key: FindingUnassignedAsset, Kind: "none", Label: "未关联资产"}
+	unassigned := &FindingAssetNode{Key: FindingUnassignedAsset, Kind: "none", Label: "No linked assets"}
 	touched := map[string]bool{}
 	for _, h := range hits {
 		clear(touched)
@@ -556,7 +556,7 @@ func (d *DB) attachCompanyNodes(nodes map[string]*FindingAssetNode, parentOf map
 			continue
 		}
 		if name == "" {
-			name = "企业 #" + strconv.FormatInt(id, 10)
+			name = "Company #" + strconv.FormatInt(id, 10)
 		}
 		nodes[key] = &FindingAssetNode{Key: key, Kind: "company", Label: name, CompanyID: id}
 	}
@@ -577,7 +577,7 @@ func (d *DB) attachCompanyNodes(nodes map[string]*FindingAssetNode, parentOf map
 	return nil
 }
 
-// sortFindingAssetNodes 排序:发现多的在前,同数按标签;「未关联资产」恒在最后。
+// sortFindingAssetNodes 排序:发现多的在前,同数按标签;「No linked assets」恒在最后。
 // 前端按数组顺序挂子节点,所以只要同一父节点下的相对顺序正确即可。
 func sortFindingAssetNodes(nodes []FindingAssetNode) {
 	sort.SliceStable(nodes, func(i, j int) bool {

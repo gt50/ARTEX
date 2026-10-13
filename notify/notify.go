@@ -42,44 +42,44 @@ var severityRank = map[string]int{
 // SeverityRank 返回级别的序数；未知级别返回 0。
 func SeverityRank(severity string) int { return severityRank[severity] }
 
-// SeverityLabel 返回带 emoji 的中文级别名，用于消息标题与卡片配色。
-// 未知级别原样回显，不臆造。
+// SeverityLabel returns an English severity label with an emoji for message titles.
+// Unknown severity values are returned unchanged.
 func SeverityLabel(severity string) string {
 	switch severity {
 	case "critical":
-		return "🔴 严重"
+		return "🔴 Critical"
 	case "high":
-		return "🟠 高危"
+		return "🟠 High"
 	case "medium":
-		return "🟡 中危"
+		return "🟡 Medium"
 	case "low":
-		return "🔵 低危"
+		return "🔵 Low"
 	default:
 		return severity
 	}
 }
 
-// StatusLabel 把处置状态翻译成中文，用于状态变更消息。
+// StatusLabel returns the English disposition label for status-change messages.
 func StatusLabel(status string) string {
 	switch status {
 	case "pending":
-		return "待处理"
+		return "Pending"
 	case "in_progress":
-		return "处理中"
+		return "In progress"
 	case "confirmed":
-		return "已确认"
+		return "Confirmed"
 	case "resolved":
-		return "已处理"
+		return "Resolved"
 	case "fixed":
-		return "已修复"
+		return "Fixed"
 	case "false_positive":
-		return "误报"
+		return "False positive"
 	case "ignored":
-		return "忽略"
+		return "Ignored"
 	case "duplicate":
-		return "重复"
+		return "Duplicate"
 	case "risk_accepted":
-		return "风险接受"
+		return "Risk accepted"
 	default:
 		return status
 	}

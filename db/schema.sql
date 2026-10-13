@@ -1073,7 +1073,7 @@ ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFA
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS audit JSONB;
 ALTER TABLE intercept_pending ADD COLUMN IF NOT EXISTS decision_source TEXT NOT NULL DEFAULT '';
 UPDATE intercept_pending SET decision_source=CASE WHEN rule_id IS NOT NULL THEN 'rule'
- WHEN reason LIKE '[模型]%' THEN 'model' ELSE 'unknown' END WHERE decision_source='';
+ WHEN reason LIKE '[model]%' OR reason LIKE '[模型]%' THEN 'model' ELSE 'unknown' END WHERE decision_source='';
 
 -- =====================================================================
 -- L. 漏洞发现持久化

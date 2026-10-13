@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+func TestInterceptSourceAcceptsEnglishAndLegacyPrefixes(t *testing.T) {
+	for _, tc := range []struct {
+		ruleID int64
+		reason string
+		want   string
+	}{
+		{0, "[model] Allowed", "model"},
+		{0, "[模型] 放行", "model"},
+		{1, "[model] Allowed", "rule"},
+		{0, "Other reason", "unknown"},
+	} {
+		if got := interceptSource(tc.ruleID, tc.reason); got != tc.want {
+			t.Errorf("rule=%d reason=%q: got %q, want %q", tc.ruleID, tc.reason, got, tc.want)
+		}
+	}
+}
+
 func TestInterceptApprovalFilters(t *testing.T) {
 	d, err := Open(testDSN(t))
 	if err != nil {
@@ -39,6 +56,9 @@ func TestInterceptApprovalFilters(t *testing.T) {
 					}
 					if source == "model" {
 						reason = "[模型] fixture"
+						if i%2 == 0 {
+							reason = "[model] fixture"
+						}
 					}
 					id, err := d.CreateDecidedIntercept(ruleID, 0, task, "test", "Bash", []byte(`{"command":"fixture"}`), status, reason)
 					if err != nil {

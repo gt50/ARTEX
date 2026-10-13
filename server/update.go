@@ -279,15 +279,15 @@ func (s *Server) updateApply(w http.ResponseWriter, r *http.Request) {
 	}
 	cmp, comparable := selfupdate.CompareVersions(current, rel.TagName)
 	if !comparable {
-		writeErr(w, 400, fmt.Sprintf("当前版本 %q 不是正式发布版本，已禁用一键更新", current))
+		writeErr(w, 400, fmt.Sprintf("current version %q is not a release build; one-click updates are disabled", current))
 		return
 	}
 	if cmp >= 0 {
-		writeErr(w, 400, fmt.Sprintf("当前已是最新版本 %s", current))
+		writeErr(w, 400, fmt.Sprintf("already running the latest version %s", current))
 		return
 	}
 	if !updHub.begin(rel.TagName) {
-		writeErr(w, 409, "已有一个更新正在进行中")
+		writeErr(w, 409, "an update is already in progress")
 		return
 	}
 
@@ -314,7 +314,7 @@ func (s *Server) updateApply(w http.ResponseWriter, r *http.Request) {
 // updateRollback 主动退回上一版本（换装前备份的 artex.old）。
 func (s *Server) updateRollback(w http.ResponseWriter, r *http.Request) {
 	if _, running := updHub.snapshot(); running {
-		writeErr(w, 409, "更新正在进行中，无法回滚")
+		writeErr(w, 409, "cannot roll back while an update is in progress")
 		return
 	}
 	if err := selfupdate.Rollback(); err != nil {

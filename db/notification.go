@@ -25,7 +25,7 @@ import (
 //     不可漏推。
 
 // ErrNotificationChannelNotFound 渠道不存在。
-var ErrNotificationChannelNotFound = errors.New("通知渠道不存在")
+var ErrNotificationChannelNotFound = errors.New("notification channel does not exist")
 
 // 投递状态。
 const (
@@ -33,7 +33,7 @@ const (
 	NotifyStateSending = "sending" // 已被某个 dispatcher 领取，租约未到期
 	NotifyStateSent    = "sent"    // 已送达
 	NotifyStateFailed  = "failed"  // 重试耗尽或永久失败，可手动重发
-	NotifyStateSkipped = "skipped" // 渠道已停用，不再发送
+	NotifyStateSkipped = "skipped" // channel disabled，不再发送
 )
 
 // 推送模式。
@@ -138,7 +138,7 @@ func (d *DB) SaveNotificationChannel(ctx context.Context, c *NotificationChannel
 	// 「未指定」与「显式 0」的区别只有调用方知道（请求体里字段缺省 vs 明确传 0），
 	// 所以默认值由 server 层在字段缺省时填，见 notifyCreateChannel。
 	if c.RatePerMin < 0 {
-		return 0, errors.New("限流值不能为负")
+		return 0, errors.New("rate limit cannot be negative")
 	}
 	if c.Config == nil {
 		c.Config = json.RawMessage(`{}`)
@@ -184,7 +184,7 @@ func (d *DB) SetNotificationChannelEnabled(ctx context.Context, id int64, enable
 		if !enabled {
 			if _, err := tx.ExecContext(ctx, `UPDATE notification_deliveries SET state=$2, last_error=$3
 WHERE channel_id=$1 AND state IN ($4,$5)`,
-				id, NotifyStateSkipped, "渠道已停用", NotifyStatePending, NotifyStateSending); err != nil {
+				id, NotifyStateSkipped, "channel disabled", NotifyStatePending, NotifyStateSending); err != nil {
 				return err
 			}
 		}
@@ -225,19 +225,19 @@ func (d *DB) DeleteNotificationChannel(ctx context.Context, id int64) error {
 func RecordNotificationEventTx(ctx context.Context, tx *sql.Tx, kind string, findingID int64, snap notify.Snapshot) bool {
 	raw, err := json.Marshal(snap)
 	if err != nil {
-		log.Printf("[notify] 序列化推送事件失败 finding=%d: %v", findingID, err)
+		log.Printf("[notify] failed to serialize notification event finding=%d: %v", findingID, err)
 		return false
 	}
 	if _, err := tx.ExecContext(ctx, `SAVEPOINT notify_event`); err != nil {
-		log.Printf("[notify] 建立保存点失败 finding=%d: %v", findingID, err)
+		log.Printf("[notify] failed to create savepoint finding=%d: %v", findingID, err)
 		return false
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO notification_events(kind,finding_id,snapshot) VALUES($1,$2,$3)`,
 		kind, findingID, string(raw)); err != nil {
-		log.Printf("[notify] 写入推送事件失败 finding=%d（漏洞记录不受影响）: %v", findingID, err)
+		log.Printf("[notify] failed to save notification event finding=%d (finding record is unaffected): %v", findingID, err)
 		// 回滚到保存点，把事务从 aborted 状态里救回来。
 		if _, rbErr := tx.ExecContext(ctx, `ROLLBACK TO SAVEPOINT notify_event`); rbErr != nil {
-			log.Printf("[notify] 回滚到保存点失败 finding=%d: %v", findingID, rbErr)
+			log.Printf("[notify] failed to roll back to savepoint finding=%d: %v", findingID, rbErr)
 		}
 		return false
 	}
@@ -251,7 +251,7 @@ func RecordNotificationEventTx(ctx context.Context, tx *sql.Tx, kind string, fin
 func (d *DB) AddNotificationEvent(ctx context.Context, kind string, findingID int64, snap notify.Snapshot) (int64, error) {
 	raw, err := json.Marshal(snap)
 	if err != nil {
-		return 0, fmt.Errorf("序列化通知事件快照失败: %w", err)
+		return 0, fmt.Errorf("failed to serialize notification event snapshot: %w", err)
 	}
 	var id int64
 	err = d.QueryRowContext(ctx, `INSERT INTO notification_events(kind,finding_id,snapshot) VALUES($1,$2,$3) RETURNING id`,
@@ -458,7 +458,7 @@ func assetDisplayName(typ, domain, ip, url, appName, bundleID string) string {
 // 三条刻意的行为：
 //   - 状态未实际变化时不登记事件。前端抽屉重复提交同一个值、或自动化脚本
 //     幂等重放，都不该产出推送噪音。
-//   - 漏洞不存在时返回 found=false 且不做任何写入，由调用方翻译成 404。
+//   - finding does not exist时返回 found=false 且不做任何写入，由调用方翻译成 404。
 //   - 事件登记失败不影响状态更新（见 RecordNotificationEventTx 的保存点说明），
 //     所以 notified=false 时状态已经改成功了，调用方不应因此报错。
 func (d *DB) SetFindingStatusWithNotify(ctx context.Context, id int64, status string) (from string, found bool, notified bool, err error) {
