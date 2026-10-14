@@ -237,9 +237,10 @@ export const api = {
   // ---- auth ----
   authStatus: () => get<{ initialized: boolean }>("/auth/status"),
   login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
-  initPassword: (password: string) => post<{ token: string }>("/auth/init", { password }),
-  changePassword: (oldPassword: string, newPassword: string) =>
-    post<{ ok: boolean }>("/auth/change-password", { old_password: oldPassword, new_password: newPassword }),
+  account: () => get<{ username: string }>("/auth/account"),
+  initPassword: (username: string, password: string) => post<{ token: string }>("/auth/init", { username, password }),
+  changePassword: (oldPassword: string, newPassword: string, username: string) =>
+    post<{ ok: boolean; token: string }>("/auth/change-password", { username, old_password: oldPassword, new_password: newPassword }),
 
   // ---- tasks ----
   tasks: () =>

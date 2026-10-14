@@ -35,7 +35,8 @@ export const auth = {
       const parts = token.split(".");
       if (parts.length !== 3) return null;
       // base64url → base64
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      const bytes = Uint8Array.from(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
       const username: string = payload.sub ?? "ARTEX";
       return { id: "1", name: username, username, email: "", avatar: "", role: "operator" };
     } catch {

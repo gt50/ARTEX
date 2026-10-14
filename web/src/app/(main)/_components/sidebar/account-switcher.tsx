@@ -28,7 +28,7 @@ export function AccountSwitcher({
     readonly role: string;
   }>;
 }) {
-  const [activeUser, setActiveUser] = useState(users[0]);
+  const activeUser = users[0];
   const [pwOpen, setPwOpen] = useState(false);
 
   function handleLogout() {
@@ -55,7 +55,6 @@ export function AccountSwitcher({
               key={user.email}
               className={cn("p-0", user.id === activeUser.id && "bg-accent/50")}
               aria-current={user.id === activeUser.id ? "true" : undefined}
-              onClick={() => setActiveUser(user)}
             >
               <div className="flex w-full items-center gap-2 px-1 py-1.5">
                 <Avatar className="size-9 rounded-lg">
@@ -80,7 +79,7 @@ export function AccountSwitcher({
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setPwOpen(true)}>
             <KeyRound />
-            Change password
+            Account settings
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
             <LogOut />

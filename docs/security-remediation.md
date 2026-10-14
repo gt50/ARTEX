@@ -170,7 +170,7 @@ ARTEX profile contain the same key. Health remains intentionally public.
 
 ## Production verification
 
-The production container uses image
+The initial security cutover used image
 `sha256:298c96ea04973a65760c758dcda132ba07bd967ec7ce058f6cb0040bd99daffe`.
 Post-cutover checks confirmed healthy HTTP service, UID/GID 10001, a read-only
 root filesystem, all capabilities dropped, no-new-privileges, named volumes only,
@@ -182,9 +182,16 @@ The restored task resumed processing its existing 84,399-token prompt; a separat
 authorized model-completion check passed before cutover. No task was interrupted
 to force the connection test to pass. Both reported i174 marker files are absent.
 
-The reviewed security changes are published separately on
-`codex/security-hardening`; pre-existing account-management edits are preserved
-in the original checkout and excluded from that branch.
+The reviewed security changes are published on `codex/security-hardening`.
+The initial security deployment excluded existing account-management edits and
+therefore regressed login to the fixed ARTEX username. A follow-up restores the
+custom-account backend, editable login/setup fields, account settings, and UTF-8
+token display while preserving header-only authentication and login throttling.
+The saved production credentials are preserved. A disposable deployment verified
+custom-username login, rejection of ARTEX for a custom account, authenticated
+account lookup, and an editable hydrated login field in Chromium.
+The follow-up runtime image is
+`sha256:7ebb5d5323714dc5c9726a1e27c20ebdf738f734ea0dad1df81242ddab78d1a7`.
 
 Authenticated proxy clients retain pentest destination access. Authentication
 removes the reported unauthenticated pivot; destination authorization still

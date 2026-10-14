@@ -657,6 +657,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
+	mux.HandleFunc("GET /api/auth/account", s.authAccount)
 
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/stats", s.stats)
@@ -1480,7 +1481,7 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		req.TimeoutSeconds = 0
 	}
 	if len(req.SourceTaskIDs) > db.MaxTaskSourceCount {
-			writeErr(w, 400, fmt.Sprintf("select no more than %d linked tasks", db.MaxTaskSourceCount))
+		writeErr(w, 400, fmt.Sprintf("select no more than %d linked tasks", db.MaxTaskSourceCount))
 		return
 	}
 	sourceIDs := make([]int64, 0, len(req.SourceTaskIDs))
@@ -3427,7 +3428,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 		//Leaving the trailing slash produces a double-slash path like "//function/...".
 		base := trimTrailingSlash(strings.TrimSpace(*req.NotifyBaseURL))
 		if base != "" && !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
-		writeErr(w, 400, "public base URL must start with http:// or https://")
+			writeErr(w, 400, "public base URL must start with http:// or https://")
 			return
 		}
 		if err := s.m.pg.SetSetting(settingNotifyPublicBaseURL, base); err != nil {
@@ -3438,7 +3439,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	if req.NotifyDigestMins != nil {
 		//The lower limit is 1 minute: a shorter period is equivalent to real-time push, in which case the channel should be directly changed to realtime mode.
 		if *req.NotifyDigestMins < 1 || *req.NotifyDigestMins > 24*60 {
-		writeErr(w, 400, "digest interval must be between 1 and 1440 minutes")
+			writeErr(w, 400, "digest interval must be between 1 and 1440 minutes")
 			return
 		}
 		if err := s.m.pg.SetSetting(settingNotifyDigestMinutes, strconv.Itoa(*req.NotifyDigestMins)); err != nil {

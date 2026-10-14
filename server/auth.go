@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,10 +18,11 @@ import (
 )
 
 const (
-	jwtKeyFilename = "jwt.key"
-	authPassKey    = "auth.password_hash"
-	jwtTTL         = 7 * 24 * time.Hour
-	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	jwtKeyFilename  = "jwt.key"
+	authPassKey     = "auth.password_hash"
+	authUsernameKey = "auth.username"
+	jwtTTL          = 7 * 24 * time.Hour
+	keyChars        = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	//The lower limit is consistent with the front-end verification on the setup page - if the verification is only placed on the front-end, it means it is not placed. Just type API directly.
 	//Bypass. The upper limit is bcrypt's hard limit: more than 72 bytes GenerateFromPassword returns
@@ -83,10 +85,14 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 	return buf, nil
 }
 
-// signJWT issues a 7-day HS256 token for user ARTEX.
-func signJWT(key []byte) (string, error) {
+// signJWT issues a 7-day HS256 token. The default preserves existing callers.
+func signJWT(key []byte, usernames ...string) (string, error) {
+	username := "ARTEX"
+	if len(usernames) > 0 {
+		username = usernames[0]
+	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Subject:   "ARTEX",
+		Subject:   username,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}).SignedString(key)
@@ -166,6 +172,7 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
+		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if err := decode(r, &req); err != nil || req.Password == "" {
@@ -176,15 +183,18 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, msg)
 		return
 	}
+	req.Username = strings.TrimSpace(req.Username)
+	if msg := validateUsername(req.Username); msg != "" {
+		writeErr(w, 400, msg)
+		return
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		writeErr(w, 500, "Failed to hash password")
 		return
 	}
-	//Use INSERT ... ON CONFLICT DO NOTHING instead of upsert: the above GetSetting just
-	//Fail-fast path, the real "first-time-settable only" guarantee falls on the primary key constraint. bcrypt takes tens of milliseconds to run.
-	//During this period, other requests may set the password first, and the read check itself may fail due to failure.
-	inserted, err := pg.InsertSettingIfAbsent(authPassKey, string(hash))
+	// The database inserts the password only once and saves the username in the same transaction.
+	inserted, err := pg.InitAccount(req.Username, string(hash))
 	if err != nil {
 		writeErr(w, 500, "Failed to save: "+err.Error())
 		return
@@ -193,7 +203,7 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 403, "Password is already set")
 		return
 	}
-	tok, err := signJWT(s.jwtKey)
+	tok, err := signJWT(s.jwtKey, req.Username)
 	if err != nil {
 		writeErr(w, 500, "Failed to generate token")
 		return
@@ -201,7 +211,7 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"token": tok})
 }
 
-// POST /api/auth/change-password — changes the admin password. Requires a valid
+// POST /api/auth/change-password — changes the admin username and/or password. Requires a valid
 // token (this route is under /api/auth/* which requireAuth exempts, so the token
 // is validated here) AND the current password.
 func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
@@ -214,18 +224,19 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
+		Username    *string `json:"username"`
+		OldPassword string  `json:"old_password"`
+		NewPassword string  `json:"new_password"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	if req.NewPassword == "" {
-		writeErr(w, 400, "New password cannot be empty")
+	if req.NewPassword == "" && req.Username == nil {
+		writeErr(w, 400, "Enter a username or a new password")
 		return
 	}
-	if msg := validatePassword(req.NewPassword); msg != "" {
+	if msg := validatePassword(req.NewPassword); req.NewPassword != "" && msg != "" {
 		writeErr(w, 400, msg)
 		return
 	}
@@ -242,16 +253,41 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Current password is incorrect")
 		return
 	}
-	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	username, err := s.accountUsername()
 	if err != nil {
-		writeErr(w, 500, "Failed to hash password")
+		writeErr(w, 503, errDataSourceUnavailable)
 		return
 	}
-	if err := pg.SetSetting(authPassKey, string(newHash)); err != nil {
+	if req.Username != nil {
+		username = strings.TrimSpace(*req.Username)
+		if msg := validateUsername(username); msg != "" {
+			writeErr(w, 400, msg)
+			return
+		}
+	}
+	newHash := []byte(hash)
+	if req.NewPassword != "" {
+		newHash, err = bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+		if err != nil {
+			writeErr(w, 500, "Failed to hash password")
+			return
+		}
+	}
+	tok, err := signJWT(s.jwtKey, username)
+	if err != nil {
+		writeErr(w, 500, "Failed to generate token")
+		return
+	}
+	updated, err := pg.UpdateAccount(username, hash, string(newHash))
+	if err != nil {
 		writeErr(w, 500, "Failed to save: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true})
+	if !updated {
+		writeErr(w, 409, "Account changed; enter the current password and try again")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "token": tok})
 }
 
 // POST /api/auth/login — validates username/password and returns a JWT.
@@ -273,7 +309,12 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	if req.Username != "ARTEX" {
+	username, err := s.accountUsername()
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	if strings.TrimSpace(req.Username) != username {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
@@ -290,10 +331,50 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
-	tok, err := signJWT(s.jwtKey)
+	tok, err := signJWT(s.jwtKey, username)
 	if err != nil {
 		writeErr(w, 500, "Failed to generate token")
 		return
 	}
 	writeJSON(w, 200, map[string]any{"token": tok})
+}
+
+func validateUsername(username string) string {
+	if username == "" || utf8.RuneCountInString(username) > 64 {
+		return "Username must be between 1 and 64 characters"
+	}
+	for _, ch := range username {
+		if unicode.IsSpace(ch) || unicode.IsControl(ch) {
+			return "Username cannot contain spaces or control characters"
+		}
+	}
+	return ""
+}
+
+func (s *Server) accountUsername() (string, error) {
+	username, ok, err := s.m.pg.GetSetting(authUsernameKey)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "ARTEX", nil
+	}
+	return username, nil
+}
+
+// authAccount exposes the saved username only to authenticated sessions.
+func (s *Server) authAccount(w http.ResponseWriter, r *http.Request) {
+	if !verifyJWT(extractToken(r), s.jwtKey) {
+		writeErr(w, 401, "Unauthorized")
+		return
+	}
+	if s.pg(w) == nil {
+		return
+	}
+	username, err := s.accountUsername()
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"username": username})
 }
