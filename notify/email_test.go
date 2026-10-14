@@ -310,7 +310,7 @@ func TestFilterValidateRejectsTypo(t *testing.T) {
 		}
 	}
 	// These are real clerical errors that happen—all of them must be rejected.
-	for _, s := range []string{"hgih", "HIGH", "严重", "high ", "crit"} {
+	for _, s := range []string{"hgih", "HIGH", "severe", "high ", "crit"} {
 		err := (Filter{MinSeverity: s}).Validate()
 		if err == nil {
 			t.Errorf("The illegal threshold %q should be rejected (otherwise the filter will silently fail and become full push)", s)

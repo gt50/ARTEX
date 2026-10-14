@@ -7,15 +7,14 @@ import (
 )
 
 func TestTruncateBytesKeepsValidUTF8(t *testing.T) {
-	// This is the most important invariant of this package. The length of Qiweixin**bytes** is limited, Chinese 3 bytes/word,
-	// Any implementation of hard cutting by byte will cut the Chinese characters in half, produce illegal UTF-8 and be rejected by the platform.
-	// Use multiple Chinese and English mixed inputs of relatively prime length to hit every possible cut point.
+	// Exercise every cut point with 1-byte ASCII, 2-byte accented Latin,
+	// 3-byte punctuation, and 4-byte emoji. Never emit a partial UTF-8 rune.
 	inputs := []string{
-		"中文测试内容",
-		"混合 mixed 内容 content",
-		"a中b文c测d试e",
+		"English text … café",
+		"Mixed text — content",
+		"a…b—c€d™e",
 		"🔴🟠🟡🔵", // 4-byte emoji, errors are more obvious
-		strings.Repeat("漏洞", 100),
+		strings.Repeat("Finding …", 100),
 	}
 	for _, in := range inputs {
 		for max := 1; max <= len(in)+2; max++ {
@@ -57,9 +56,9 @@ func TestTruncateBytesEllipsisBudget(t *testing.T) {
 }
 
 func TestTruncateRunesCountsCharactersNotBytes(t *testing.T) {
-	// The difference in caliber with TruncateBytes must be retained: Telegram is limited in length by characters,
-	// Using byte caliber will cut the Chinese message to only one third.
-	s := "一二三四五六七八九十"
+	// Telegram limits characters, while TruncateBytes limits UTF-8 bytes.
+	// Three-byte punctuation makes an accidental byte-based limit observable.
+	s := "…—€™…—€™…—"
 	got := TruncateRunes(s, 5)
 	if n := utf8.RuneCountInString(got); n != 5 {
 		t.Fatalf("Expected 5 characters, got %d (%q)", n, got)
@@ -71,7 +70,7 @@ func TestTruncateRunesCountsCharactersNotBytes(t *testing.T) {
 }
 
 func TestOneLineCollapsesWhitespace(t *testing.T) {
-	got := OneLine("第一行\n\n第二行\t带制表   多空格", 0)
+	got := OneLine("First line\n\nSecond line\twith tab   extra spaces", 0)
 	if strings.ContainsAny(got, "\n\t") {
 		t.Fatalf("All whitespace should be collapsed, giving %q", got)
 	}
@@ -79,7 +78,7 @@ func TestOneLineCollapsesWhitespace(t *testing.T) {
 		t.Fatalf("Consecutive spaces should not be preserved, getting %q", got)
 	}
 	// Truncation must still be readable and legal.
-	got = OneLine("一二三四五六七八九十", 4)
+	got = OneLine("…—€™…—€™…—", 4)
 	if n := utf8.RuneCountInString(got); n != 4 {
 		t.Fatalf("Expected 4 characters, got %d (%q)", n, got)
 	}
@@ -87,7 +86,7 @@ func TestOneLineCollapsesWhitespace(t *testing.T) {
 
 func TestTruncateHTMLNeverCutsTagInHalf(t *testing.T) {
 	// Directly truncating HTML will cut out fragments such as `<a href="htt`, and the platform will reject the entire message.
-	s := `<b>标题</b>正文正文正文<a href="https://example.com/very/long/path">查看详情</a>`
+	s := `<b>Title</b>Body body body<a href="https://example.com/very/long/path">View details</a>`
 	for max := 1; max <= utf8.RuneCountInString(s)+2; max++ {
 		got := TruncateHTML(s, max)
 		if n := utf8.RuneCountInString(got); max > 0 && n > max {

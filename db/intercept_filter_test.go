@@ -55,7 +55,7 @@ func TestInterceptApprovalFilters(t *testing.T) {
 						ruleID = rule.ID
 					}
 					if source == "model" {
-						reason = "[模型] fixture"
+						reason = "[model] fixture"
 						if i%2 == 0 {
 							reason = "[model] fixture"
 						}

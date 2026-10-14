@@ -17,8 +17,8 @@ import (
 func TestSettlementOnBudgetHit(t *testing.T) {
 	var toolsSeen [][]string
 	turns := [][]llm.StreamEvent{
-		toolTurn("a", "Bash", `{"command":"echo 1"}`), // turn 1 → hits MaxTurns=1
-		textTurn("已写回事实并总结"),                          // settlement turn → natural stop
+		toolTurn("a", "Bash", `{"command":"echo 1"}`),           // turn 1 → hits MaxTurns=1
+		textTurn("Facts have been written back and summarized"), // settlement turn → natural stop
 	}
 	call := func(_ context.Context, req llm.CompletionRequest) iter.Seq2[llm.StreamEvent, error] {
 		names := make([]string, 0, len(req.Tools))
@@ -42,7 +42,7 @@ func TestSettlementOnBudgetHit(t *testing.T) {
 		PermissionMode: permission.ModeBypass,
 		WorkingDir:     t.TempDir(),
 		MaxTurns:       1,
-		Settlement:     &Settlement{Prompt: "SETTLE_NOW 请写回事实", DisabledTools: []string{"Bash"}},
+		Settlement:     &Settlement{Prompt: "SETTLE_NOW Please write back the facts", DisabledTools: []string{"Bash"}},
 	}
 	term := drain(t, in, QueryDeps{CallModel: call})
 

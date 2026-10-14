@@ -67,7 +67,7 @@ func TestMatchScopeRestrictions(t *testing.T) {
 		Severity:  "high",
 		TaskID:    7,
 		AssetIDs:  []int64{10, 20},
-		VulnClass: "SQL注入",
+		VulnClass: "SQL injection",
 	}
 	cases := []struct {
 		name   string
@@ -102,20 +102,20 @@ func TestMatchVulnClassKeywords(t *testing.T) {
 		class  string
 		expect bool
 	}{
-		{"empty include accepts all", Filter{}, "任意类型", true},
-		{"include matches", Filter{VulnClassInclude: []string{"SQL"}}, "SQL注入", true},
-		{"include does not match", Filter{VulnClassInclude: []string{"命令执行"}}, "SQL注入", false},
-		{"any include keyword matches", Filter{VulnClassInclude: []string{"命令执行", "SQL"}}, "SQL注入", true},
-		{"case insensitive", Filter{VulnClassInclude: []string{"sql"}}, "SQL注入", true},
-		{"matching exclude rejects", Filter{VulnClassExclude: []string{"信息泄露"}}, "信息泄露", false},
-		{"nonmatching exclude allows", Filter{VulnClassExclude: []string{"信息泄露"}}, "SQL注入", true},
+		{"empty include accepts all", Filter{}, "Any class", true},
+		{"include matches", Filter{VulnClassInclude: []string{"SQL"}}, "SQL injection", true},
+		{"include does not match", Filter{VulnClassInclude: []string{"Command execution"}}, "SQL injection", false},
+		{"any include keyword matches", Filter{VulnClassInclude: []string{"Command execution", "SQL"}}, "SQL injection", true},
+		{"case insensitive", Filter{VulnClassInclude: []string{"sql"}}, "SQL injection", true},
+		{"matching exclude rejects", Filter{VulnClassExclude: []string{"Information disclosure"}}, "Information disclosure", false},
+		{"nonmatching exclude allows", Filter{VulnClassExclude: []string{"Information disclosure"}}, "SQL injection", true},
 		// Exclusion takes precedence over inclusion: simultaneous hits should result in an out.
 		{"exclude takes precedence over include", Filter{
 			VulnClassInclude: []string{"SQL"},
-			VulnClassExclude: []string{"注入"},
-		}, "SQL注入", false},
+			VulnClassExclude: []string{"injection"},
+		}, "SQL injection", false},
 		// Pure whitespace keywords should be ignored, otherwise they will degenerate into "match all strings containing spaces".
-		{"blank keywords are ignored", Filter{VulnClassInclude: []string{"", "  "}}, "SQL注入", false},
+		{"blank keywords are ignored", Filter{VulnClassInclude: []string{"", "  "}}, "SQL injection", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

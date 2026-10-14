@@ -37,8 +37,8 @@ func drainWithCtx(t *testing.T, ctx context.Context, in QueryInput, deps QueryDe
 // turn-boundary-only budget check could never settle.
 func TestSettlementOnToolOverrunsBudget(t *testing.T) {
 	m := &scriptedModel{turns: [][]llm.StreamEvent{
-		toolTurn("s1", "sleep", `{"seconds":3600}`), // hangs far past MaxDuration
-		textTurn("已写回事实并总结"),                          // settlement turn → natural stop
+		toolTurn("s1", "sleep", `{"seconds":3600}`),             // hangs far past MaxDuration
+		textTurn("Facts have been written back and summarized"), // settlement turn → natural stop
 	}}
 	in := QueryInput{
 		Messages:       []llm.Message{llm.UserText("go")},
@@ -46,7 +46,7 @@ func TestSettlementOnToolOverrunsBudget(t *testing.T) {
 		PermissionMode: permission.ModeBypass,
 		WorkingDir:     t.TempDir(),
 		MaxDuration:    100 * time.Millisecond, // budget the run so the sleep overruns it
-		Settlement:     &Settlement{Prompt: "SETTLE_ON_TIMEOUT 请写回事实"},
+		Settlement:     &Settlement{Prompt: "SETTLE_ON_TIMEOUT Please write back the facts"},
 	}
 	term := drainWithCtx(t, context.Background(), in, QueryDeps{CallModel: m.call})
 

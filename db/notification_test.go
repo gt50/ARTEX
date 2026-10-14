@@ -30,7 +30,7 @@ func newTestChannel(t *testing.T, d *DB, kind, mode string, filter string) *Noti
 		filter = `{}`
 	}
 	ch := &NotificationChannel{
-		Name:       "测试渠道-" + t.Name(),
+		Name:       "Test channel-" + t.Name(),
 		Kind:       kind,
 		Mode:       mode,
 		Config:     json.RawMessage(`{"webhook":"https://example.com/hook"}`),
@@ -156,7 +156,7 @@ func TestFanOutRoutesEventsByFilter(t *testing.T) {
 	onlyCritical := newTestChannel(t, d, notify.KindDingTalk, NotifyModeRealtime, `{"min_severity":"critical"}`)
 	sqlOnly := newTestChannel(t, d, notify.KindDingTalk, NotifyModeRealtime, `{"vulnclass_include":["SQL"]}`)
 
-	highSQL := addTestEvent(t, d, notify.EventFindingCreated, 1001, notify.Snapshot{Severity: "high", VulnClass: "SQL注入"})
+	highSQL := addTestEvent(t, d, notify.EventFindingCreated, 1001, notify.Snapshot{Severity: "high", VulnClass: "SQL injection"})
 	lowXSS := addTestEvent(t, d, notify.EventFindingCreated, 1002, notify.Snapshot{Severity: "low", VulnClass: "XSS"})
 	criticalXSS := addTestEvent(t, d, notify.EventFindingCreated, 1003, notify.Snapshot{Severity: "critical", VulnClass: "XSS"})
 
@@ -170,12 +170,12 @@ func TestFanOutRoutesEventsByFilter(t *testing.T) {
 		channel int64
 		want    bool
 	}{
-		{"全收渠道收到 high", highSQL, all.ID, true},
-		{"全收渠道收到 low", lowXSS, all.ID, true},
-		{"仅严重渠道跳过 high", highSQL, onlyCritical.ID, false},
-		{"仅严重渠道收到 critical", criticalXSS, onlyCritical.ID, true},
-		{"仅SQL渠道收到 SQL", highSQL, sqlOnly.ID, true},
-		{"仅SQL渠道跳过 XSS", lowXSS, sqlOnly.ID, false},
+		{"The channel accepting all severities receives high", highSQL, all.ID, true},
+		{"The channel accepting all severities receives low", lowXSS, all.ID, true},
+		{"The critical-only channel skips high", highSQL, onlyCritical.ID, false},
+		{"The critical-only channel receives critical", criticalXSS, onlyCritical.ID, true},
+		{"The SQL-only channel receives SQL", highSQL, sqlOnly.ID, true},
+		{"The SQL-only channel skips XSS", lowXSS, sqlOnly.ID, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -205,7 +205,7 @@ func TestFanOutRoutesEventsByFilter(t *testing.T) {
 func TestFanOutMarksEventsWithNoMatchingChannel(t *testing.T) {
 	d := notifyTestDB(t)
 	ctx := context.Background()
-	pick := newTestChannel(t, d, notify.KindDingTalk, NotifyModeRealtime, `{"vulnclass_include":["绝不匹配的类型"]}`)
+	pick := newTestChannel(t, d, notify.KindDingTalk, NotifyModeRealtime, `{"vulnclass_include":["Never matching class"]}`)
 	_ = pick
 
 	ev := addTestEvent(t, d, notify.EventFindingCreated, 2001, notify.Snapshot{Severity: "high", VulnClass: "XSS"})
@@ -393,7 +393,7 @@ func TestDigestBatchDueAndStableBatchID(t *testing.T) {
 	for _, dl := range batch {
 		allIDs = append(allIDs, dl.ID)
 	}
-	if err := d.RescheduleDeliveries(ctx, allIDs, time.Second, "模拟失败"); err != nil {
+	if err := d.RescheduleDeliveries(ctx, allIDs, time.Second, "Simulation failed"); err != nil {
 		t.Fatal(err)
 	}
 	// Push the lease into the past and simulate that the backoff time has expired.
@@ -426,18 +426,18 @@ func TestDeliveryStateTransitions(t *testing.T) {
 	}
 	id := got[0].ID
 
-	if err := d.RescheduleDeliveries(ctx, []int64{id}, time.Second, "网络抖动"); err != nil {
+	if err := d.RescheduleDeliveries(ctx, []int64{id}, time.Second, "Network jitter"); err != nil {
 		t.Fatal(err)
 	}
 	var state, lastErr string
 	if err := d.QueryRow(`SELECT state, last_error FROM notification_deliveries WHERE id=$1`, id).Scan(&state, &lastErr); err != nil {
 		t.Fatal(err)
 	}
-	if state != NotifyStatePending || lastErr != "网络抖动" {
+	if state != NotifyStatePending || lastErr != "Network jitter" {
 		t.Fatalf("After rearrangement, it should be pending and the reason will be recorded, and we will get state=%s err=%q", state, lastErr)
 	}
 
-	if err := d.FailDeliveries(ctx, []int64{id}, "重试耗尽"); err != nil {
+	if err := d.FailDeliveries(ctx, []int64{id}, "Exhausted retries"); err != nil {
 		t.Fatal(err)
 	}
 	if err := d.QueryRow(`SELECT state FROM notification_deliveries WHERE id=$1`, id).Scan(&state); err != nil {
@@ -477,7 +477,7 @@ func TestListNotificationDeliveriesPagingAndFilter(t *testing.T) {
 	ctx := context.Background()
 	ch := newTestChannel(t, d, notify.KindDingTalk, NotifyModeRealtime, `{}`)
 	for i := 0; i < 5; i++ {
-		addTestEvent(t, d, notify.EventFindingCreated, int64(8000+i), notify.Snapshot{Severity: "high", Name: "分页测试"})
+		addTestEvent(t, d, notify.EventFindingCreated, int64(8000+i), notify.Snapshot{Severity: "high", Name: "Pagination test"})
 	}
 	if _, _, err := d.FanOutPendingEvents(ctx, 100); err != nil {
 		t.Fatal(err)
@@ -523,15 +523,15 @@ func TestSetFindingStatusWithNotifyOnlyEmitsOnRealChange(t *testing.T) {
 	d := notifyTestDB(t)
 	ctx := context.Background()
 
-	tk, err := d.CreateTask("通知状态变更测试", "目标", nil, 0, 0)
+	tk, err := d.CreateTask("Notification status change test", "Target", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer d.DeleteTask(tk.ID)
 	es := d.Exploration(tk.ExplorationID)
 	f, err := es.RecordFinding(ctx, RecordFindingInput{
-		TaskID: tk.ID, Worker: "test", VulnClass: "SQL注入", Name: "状态变更用例",
-		Severity: "high", Summary: "摘要",
+		TaskID: tk.ID, Worker: "test", VulnClass: "SQL injection", Name: "State change use case",
+		Severity: "high", Summary: "summary",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -583,7 +583,7 @@ func TestSetFindingStatusWithNotifyOnlyEmitsOnRealChange(t *testing.T) {
 		t.Fatalf("The status flow in the snapshot is incorrect: %s → %s", snap.FromStatus, snap.ToStatus)
 	}
 	// The snapshot must bring the fields required for rendering, otherwise the status change message will be an empty shell.
-	if snap.VulnClass != "SQL注入" || snap.Severity != "high" || snap.Name != "状态变更用例" {
+	if snap.VulnClass != "SQL injection" || snap.Severity != "high" || snap.Name != "State change use case" {
 		t.Fatalf("Snapshot is missing render fields: %+v", snap)
 	}
 	var status string
@@ -630,7 +630,7 @@ func TestNotificationChannelCRUDRoundTrip(t *testing.T) {
 	ctx := context.Background()
 
 	ch := &NotificationChannel{
-		Name:       "CRUD 往返",
+		Name:       "CRUD round trip",
 		Kind:       notify.KindEmail,
 		Mode:       NotifyModeDigest,
 		Config:     json.RawMessage(`{"host":"smtp.example.com","port":587,"from":"a@b.c","to":["x@y.z"]}`),
@@ -647,7 +647,7 @@ func TestNotificationChannelCRUDRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read failed: %v", err)
 	}
-	if got.Mode != NotifyModeDigest || got.RatePerMin != 42 || got.Name != "CRUD 往返" {
+	if got.Mode != NotifyModeDigest || got.RatePerMin != 42 || got.Name != "CRUD round trip" {
 		t.Fatalf("Round trip fields are inconsistent: %+v", got)
 	}
 	if !got.IsEnabled() {
@@ -669,7 +669,7 @@ func TestNotificationChannelCRUDRoundTrip(t *testing.T) {
 	}
 
 	// Read again after updating.
-	got.Name = "改名了"
+	got.Name = "Name changed"
 	off := false
 	got.Enabled = &off
 	if _, err := d.SaveNotificationChannel(ctx, got); err != nil {
@@ -679,7 +679,7 @@ func TestNotificationChannelCRUDRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if after.Name != "改名了" || after.IsEnabled() {
+	if after.Name != "Name changed" || after.IsEnabled() {
 		t.Fatalf("Update not taking effect: %+v", after)
 	}
 
@@ -709,7 +709,7 @@ func TestSaveNotificationChannelKeepsExplicitZeroRate(t *testing.T) {
 
 	// Explicit 0 (no rate limit): must be saved as is.
 	unlimited := &NotificationChannel{
-		Name: "不限流", Kind: notify.KindDingTalk, RatePerMin: 0,
+		Name: "No rate limit", Kind: notify.KindDingTalk, RatePerMin: 0,
 		Config: json.RawMessage(`{"webhook":"https://example.com/h"}`),
 	}
 	id, err := d.SaveNotificationChannel(ctx, unlimited)
@@ -730,7 +730,7 @@ func TestSaveNotificationChannelKeepsExplicitZeroRate(t *testing.T) {
 
 	// Negative values ​​are illegal input and should be rejected rather than quietly changed to another value.
 	bad := &NotificationChannel{
-		Name: "负限流", Kind: notify.KindDingTalk, RatePerMin: -1,
+		Name: "Negative rate limit", Kind: notify.KindDingTalk, RatePerMin: -1,
 		Config: json.RawMessage(`{"webhook":"https://example.com/h"}`),
 	}
 	if _, err := d.SaveNotificationChannel(ctx, bad); err == nil {
@@ -811,15 +811,15 @@ func TestFinishFindingRetestEmitsStatusChange(t *testing.T) {
 	d := notifyTestDB(t)
 	ctx := context.Background()
 
-	tk, err := d.CreateTask("复测推送测试", "目标", nil, 0, 0)
+	tk, err := d.CreateTask("Retest notification test", "Target", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer d.DeleteTask(tk.ID)
 	es := d.Exploration(tk.ExplorationID)
 	f, err := es.RecordFinding(ctx, RecordFindingInput{
-		TaskID: tk.ID, Worker: "test", VulnClass: "SQL注入", Name: "复测目标",
-		Severity: "high", Summary: "摘要",
+		TaskID: tk.ID, Worker: "test", VulnClass: "SQL injection", Name: "Retest objectives",
+		Severity: "high", Summary: "summary",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -827,7 +827,7 @@ func TestFinishFindingRetestEmitsStatusChange(t *testing.T) {
 	t.Cleanup(func() { d.Exec(`DELETE FROM notification_events WHERE finding_id=$1`, f.FindingID) })
 
 	// Create a retest record and push it directly to the completion state.
-	rt, _, _, err := d.CreateFindingRetest(ctx, f.FindingID, "复核")
+	rt, _, _, err := d.CreateFindingRetest(ctx, f.FindingID, "Review")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -838,7 +838,7 @@ func TestFinishFindingRetestEmitsStatusChange(t *testing.T) {
 	if ok, err := d.StartFindingRetest(ctx, rt.ID); err != nil || !ok {
 		t.Fatalf("Failed to start retest: ok=%v err=%v", ok, err)
 	}
-	if err := d.RecordFindingRetestResult(ctx, *rt.ConversationID, "fixed", "已修复", "证据"); err != nil {
+	if err := d.RecordFindingRetestResult(ctx, *rt.ConversationID, "fixed", "Fixed", "evidence"); err != nil {
 		t.Fatal(err)
 	}
 	if err := d.FinishFindingRetest(rt.ID, "completed", ""); err != nil {
@@ -868,7 +868,7 @@ func TestFinishFindingRetestEmitsStatusChange(t *testing.T) {
 		t.Fatalf("The status flow of the snapshot is incorrect: %s → %s", snap.FromStatus, snap.ToStatus)
 	}
 	// The snapshot must contain fields required for rendering, otherwise it will be an empty shell when pushed.
-	if snap.Name != "复测目标" || snap.Severity != "high" {
+	if snap.Name != "Retest objectives" || snap.Severity != "high" {
 		t.Fatalf("Snapshot is missing render fields: %+v", snap)
 	}
 }

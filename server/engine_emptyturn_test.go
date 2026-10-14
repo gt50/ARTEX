@@ -18,7 +18,7 @@ func assistantThinking(text string) llm.Message {
 
 func TestIsThinkingOnlyTurn(t *testing.T) {
 	toolUse := llm.Message{Role: llm.RoleAssistant, Content: []llm.ContentBlock{
-		{Type: llm.BlockThinking, Thinking: "先扫端口"},
+		{Type: llm.BlockThinking, Thinking: "Scan the port first"},
 		{Type: llm.BlockToolUse, ID: "t1", Name: "run_nuclei"},
 	}}
 	cases := []struct {
@@ -26,11 +26,11 @@ func TestIsThinkingOnlyTurn(t *testing.T) {
 		msgs []llm.Message
 		want bool
 	}{
-		{"thinking only", []llm.Message{llm.UserText("开始"), assistantThinking("想想")}, true},
-		{"thinking and tool", []llm.Message{llm.UserText("开始"), toolUse}, false},
-		{"thinking and text", []llm.Message{assistantThinking("想想"), {
+		{"thinking only", []llm.Message{llm.UserText("start"), assistantThinking("Think about it")}, true},
+		{"thinking and tool", []llm.Message{llm.UserText("start"), toolUse}, false},
+		{"thinking and text", []llm.Message{assistantThinking("Think about it"), {
 			Role:    llm.RoleAssistant,
-			Content: []llm.ContentBlock{{Type: llm.BlockThinking, Thinking: "x"}, llm.TextBlock("结论")},
+			Content: []llm.ContentBlock{{Type: llm.BlockThinking, Thinking: "x"}, llm.TextBlock("Conclusion")},
 		}}, false},
 		{"text contains only whitespace", []llm.Message{{
 			Role:    llm.RoleAssistant,
@@ -42,7 +42,7 @@ func TestIsThinkingOnlyTurn(t *testing.T) {
 			Role:    llm.RoleUser,
 			Content: []llm.ContentBlock{{Type: llm.BlockToolResult, ToolUseID: "t1"}},
 		}}, false},
-		{"no assistant message", []llm.Message{llm.UserText("开始")}, false},
+		{"no assistant message", []llm.Message{llm.UserText("start")}, false},
 		{"empty history", nil, false},
 	}
 	for _, c := range cases {
@@ -70,7 +70,7 @@ func (f fakeHooks) Stop(context.Context, []llm.Message) (bool, []string, string)
 }
 
 func TestSteerHooksStopNudgesEmptyTurn(t *testing.T) {
-	empty := []llm.Message{assistantThinking("我应该先枚举子域名")}
+	empty := []llm.Message{assistantThinking("I should enumerate subdomains first")}
 
 	t.Run("inject continuation on empty turn", func(t *testing.T) {
 		h := steerHooks{nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges, label: "worker-1 · #1"}
@@ -87,7 +87,7 @@ func TestSteerHooksStopNudgesEmptyTurn(t *testing.T) {
 		h := steerHooks{nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges}
 		normal := []llm.Message{{
 			Role:    llm.RoleAssistant,
-			Content: []llm.ContentBlock{llm.TextBlock("已完成扫描，未发现开放端口")},
+			Content: []llm.ContentBlock{llm.TextBlock("Scan completed, no open ports found")},
 		}}
 		if _, blocking, _ := h.Stop(context.Background(), normal); blocking != nil {
 			t.Fatalf("Normal ending was misjudged as idling: %v", blocking)
@@ -119,9 +119,9 @@ func TestSteerHooksStopNudgesEmptyTurn(t *testing.T) {
 	})
 
 	t.Run("preserve inner hard stop", func(t *testing.T) {
-		h := steerHooks{inner: fakeHooks{prevent: true, msg: "guard 拒绝收场"}, nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges}
+		h := steerHooks{inner: fakeHooks{prevent: true, msg: "guard refuses to end"}, nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges}
 		prevent, blocking, msg := h.Stop(context.Background(), empty)
-		if !prevent || msg != "guard 拒绝收场" || blocking != nil {
+		if !prevent || msg != "guard refuses to end" || blocking != nil {
 			t.Fatalf("The hard stop of inner has been rewritten: prevent=%v blocking=%v msg=%q", prevent, blocking, msg)
 		}
 		if n := h.nudges.Load(); n != 0 {
@@ -130,9 +130,9 @@ func TestSteerHooksStopNudgesEmptyTurn(t *testing.T) {
 	})
 
 	t.Run("preserve inner continuation", func(t *testing.T) {
-		h := steerHooks{inner: fakeHooks{blocking: []string{"guard 的续跑理由"}}, nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges}
+		h := steerHooks{inner: fakeHooks{blocking: []string{"Guard’s reason for continuing to run"}}, nudges: &atomic.Int64{}, limit: defaultEmptyTurnNudges}
 		_, blocking, _ := h.Stop(context.Background(), empty)
-		if len(blocking) != 1 || blocking[0] != "guard 的续跑理由" {
+		if len(blocking) != 1 || blocking[0] != "Guard’s reason for continuing to run" {
 			t.Fatalf("The continuation message of inner has been rewritten: %v", blocking)
 		}
 	})

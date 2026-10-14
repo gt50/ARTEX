@@ -1,6 +1,6 @@
 # English translation and remaining Chinese values
 
-Application text and documentation are being converted to English. Some Chinese literals must remain as inputs to compatibility parsers or as data for tests. This guide explains their meanings and records where they remain.
+Application text, documentation, and ordinary test inputs use English. Some Chinese literals must remain as inputs to compatibility parsers or as data for tests. This guide explains their meanings and records where they remain.
 
 ## Legacy system labels
 
@@ -80,79 +80,30 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | --- | ---: |
 | [sidequestion/validation-2026-09-10.json](<sidequestion/validation-2026-09-10.json>) | 15 |
 
-### Test data and case labels
+### Chinese-specific compatibility tests
 
-61 files; 336 lines contain Chinese.
+12 files; 41 lines contain Chinese. Ordinary fixtures and their assertions have been converted to English. The remaining cases test the language or encoding itself, with English explanations in [TEST-FIXTURES.en.md](TEST-FIXTURES.en.md).
 
 | File | Lines |
 | --- | ---: |
 | [agent/blackboard_inheritance_test.go](<agent/blackboard_inheritance_test.go>) | 1 |
 | [agent/provider_quota_test.go](<agent/provider_quota_test.go>) | 1 |
-| [agent/review_context_test.go](<agent/review_context_test.go>) | 4 |
-| [agent/terminalreason_test.go](<agent/terminalreason_test.go>) | 4 |
-| [agent/tools_overview_test.go](<agent/tools_overview_test.go>) | 1 |
-| [db/activity_page_test.go](<db/activity_page_test.go>) | 2 |
-| [db/company_scope_consistency_test.go](<db/company_scope_consistency_test.go>) | 2 |
 | [db/company_scope_test.go](<db/company_scope_test.go>) | 10 |
-| [db/config_test.go](<db/config_test.go>) | 3 |
-| [db/exploration_test.go](<db/exploration_test.go>) | 2 |
-| [db/finding_assets_test.go](<db/finding_assets_test.go>) | 9 |
-| [db/finding_retests_test.go](<db/finding_retests_test.go>) | 3 |
-| [db/findings_test.go](<db/findings_test.go>) | 13 |
-| [db/intent_delete_test.go](<db/intent_delete_test.go>) | 20 |
-| [db/intercept_detail_test.go](<db/intercept_detail_test.go>) | 4 |
-| [db/intercept_filter_test.go](<db/intercept_filter_test.go>) | 2 |
-| [db/notification_test.go](<db/notification_test.go>) | 30 |
-| [db/task_assets_test.go](<db/task_assets_test.go>) | 4 |
-| [db/task_context_unit_test.go](<db/task_context_unit_test.go>) | 1 |
-| [db/tasks_test.go](<db/tasks_test.go>) | 4 |
-| [intercept/prompt_test.go](<intercept/prompt_test.go>) | 15 |
-| [intercept/review_context_test.go](<intercept/review_context_test.go>) | 14 |
-| [intercept/trace_test.go](<intercept/trace_test.go>) | 2 |
-| [norma/harness/settlement_test.go](<norma/harness/settlement_test.go>) | 2 |
-| [norma/harness/timeout_settle_test.go](<norma/harness/timeout_settle_test.go>) | 2 |
-| [norma/noa/compress_test.go](<norma/noa/compress_test.go>) | 2 |
-| [norma/noa/edge_test.go](<norma/noa/edge_test.go>) | 3 |
-| [norma/noa/fuzz_test.go](<norma/noa/fuzz_test.go>) | 4 |
-| [norma/noa/nudgetext_test.go](<norma/noa/nudgetext_test.go>) | 1 |
-| [norma/noa/prune_test.go](<norma/noa/prune_test.go>) | 2 |
+| [db/intercept_filter_test.go](<db/intercept_filter_test.go>) | 1 |
+| [db/task_assets_test.go](<db/task_assets_test.go>) | 1 |
+| [intercept/prompt_test.go](<intercept/prompt_test.go>) | 2 |
 | [norma/noa/tokenize_test.go](<norma/noa/tokenize_test.go>) | 5 |
-| [norma/noaadapter/project_test.go](<norma/noaadapter/project_test.go>) | 1 |
-| [notify/email_test.go](<notify/email_test.go>) | 1 |
-| [notify/filter_test.go](<notify/filter_test.go>) | 11 |
-| [notify/render_test.go](<notify/render_test.go>) | 8 |
-| [server/assets_scope_test.go](<server/assets_scope_test.go>) | 2 |
-| [server/auth_test.go](<server/auth_test.go>) | 2 |
-| [server/chat_mentions_test.go](<server/chat_mentions_test.go>) | 18 |
-| [server/core_test.go](<server/core_test.go>) | 1 |
-| [server/engine_emptyturn_test.go](<server/engine_emptyturn_test.go>) | 12 |
-| [server/finding_retests_test.go](<server/finding_retests_test.go>) | 8 |
-| [server/finding_traffic_test.go](<server/finding_traffic_test.go>) | 2 |
-| [server/findings_groups_test.go](<server/findings_groups_test.go>) | 1 |
-| [server/intercept_detail_test.go](<server/intercept_detail_test.go>) | 1 |
-| [server/intercept_filter_test.go](<server/intercept_filter_test.go>) | 2 |
-| [server/intercept_live_test.go](<server/intercept_live_test.go>) | 8 |
-| [server/intercept_review_test.go](<server/intercept_review_test.go>) | 3 |
-| [server/mgmt_test.go](<server/mgmt_test.go>) | 2 |
-| [server/notify_api_test.go](<server/notify_api_test.go>) | 30 |
-| [server/skill_upload_test.go](<server/skill_upload_test.go>) | 21 |
+| [server/assets_scope_test.go](<server/assets_scope_test.go>) | 1 |
+| [server/chat_mentions_test.go](<server/chat_mentions_test.go>) | 1 |
+| [server/skill_upload_test.go](<server/skill_upload_test.go>) | 14 |
 | [server/task_llm_test.go](<server/task_llm_test.go>) | 1 |
-| [server/task_metadata_test.go](<server/task_metadata_test.go>) | 1 |
-| [server/task_templates_test.go](<server/task_templates_test.go>) | 3 |
-| [server/trigger_merge_test.go](<server/trigger_merge_test.go>) | 6 |
-| [server/update_test.go](<server/update_test.go>) | 1 |
-| [sidequestion/context_test.go](<sidequestion/context_test.go>) | 4 |
-| [traffic/reclaim_test.go](<traffic/reclaim_test.go>) | 2 |
-| [traffic/traffic_store_test.go](<traffic/traffic_store_test.go>) | 5 |
-| [traffic/upgrade_test.go](<traffic/upgrade_test.go>) | 2 |
-| [web/src/lib/chat-mentions.test.mjs](<web/src/lib/chat-mentions.test.mjs>) | 2 |
 | [web/src/lib/legacy-system-labels.test.mjs](<web/src/lib/legacy-system-labels.test.mjs>) | 3 |
-
-Developer comments and direct failure messages were translated in 44 Go test files. Another 44 assertions were updated to match English system output. Translated 107 human-readable test case labels in a further pass. Fixture inputs and diagnostic formatting directives were retained. Full-build validation also repaired the metering test setup so its usage assertions run against a newly created isolated database.
 
 ## Build validation
 
 The 2026-10-13 Windows build passed with Go 1.26.3 and Node.js 22.23.3: TypeScript checking, eleven frontend tests, 31 statically exported pages, and the Go binary with embedded UI. The final PostgreSQL integration run passed all 17 root-module packages using a fresh isolated database per package. The bundled Norma suite passed all 16 packages (741 passing tests, seven skips, zero failures).
+
+The fixture conversion updated ordinary inputs and their paired assertions in 56 test files. UTF-8 coverage now uses English with multibyte punctuation, accents, and emoji. Approval-review fixtures follow the English response contract, while dedicated legacy-format checks remain. Background-task integration tests wait for completion rather than assuming a fixed startup time.
 
 The failure-repair pass added Windows write-through evidence publication while retaining directory syncing on other platforms, waited for background processes to release output files before cleanup, connected provider context-window learning, and corrected compression pacing and summary consolidation. Tests now use the current compact overview contract, current English errors, platform-appropriate shell syntax, and a portable archive-write failure fixture. Regression checks cover publication failures, cadence scaling, the usage threshold, and summary consolidation.
 

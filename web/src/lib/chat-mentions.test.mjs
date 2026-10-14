@@ -20,12 +20,12 @@ test("categories, aliases, IP and keyword search", () => {
 });
 
 test("tokens roundtrip labels and removing one reference preserves its neighbors", () => {
-  const first = mentionToken({ kind: "finding", id: 12, label: "标题[1]\n描述" });
+  const first = mentionToken({ kind: "finding", id: 12, label: "Title[1]\nDescription" });
   const second = mentionToken({ kind: "ip", id: 13, label: "192.0.2.1" });
   const value = `Analyze ${first} and ${second}`;
   const selected = selectedMentions(value);
   assert.equal(selected.length, 2);
-  assert.equal(selected[0].label, "finding #12 · 标题（1） 描述");
+  assert.equal(selected[0].label, "finding #12 · Title（1） Description");
   const next = value.slice(0, selected[0].start) + value.slice(selected[0].start + selected[0].token.length);
   assert.equal(selectedMentions(next)[0].token, second);
 });

@@ -151,7 +151,7 @@ func TestChatMentionWorkerReceivesServerDetails(t *testing.T) {
 	requests := make(chan llm.CompletionRequest, 10)
 	worker := agent.NewWorker(retestProvider{complete: func(_ context.Context, req llm.CompletionRequest) (llm.Message, string, llm.Usage, error) {
 		requests <- req
-		return llm.Message{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock("已读取引用")}}, "end_turn", llm.Usage{}, nil
+		return llm.Message{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock("References read")}}, "end_turn", llm.Usage{}, nil
 	}}, "test", m.dir, nil, 10000, 1)
 	worker.SetNonStreaming(func() bool { return true })
 	s.engine.SetAuthoritativeAgentResolver(func(*Task) (*agent.Planner, *agent.Worker) {
@@ -166,7 +166,7 @@ func TestChatMentionWorkerReceivesServerDetails(t *testing.T) {
 		s.sendWorkerMessage(w, r)
 		return w
 	}
-	if w := send("@[漏洞#9223372036854775807]"); w.Code != 400 {
+	if w := send("@[finding#9223372036854775807]"); w.Code != 400 {
 		t.Fatalf("invalid ref accepted: %d %s", w.Code, w.Body)
 	}
 	node, _ := task.Store.GetNode(iid)
@@ -174,7 +174,7 @@ func TestChatMentionWorkerReceivesServerDetails(t *testing.T) {
 	if node.State != "paused" || len(items) != 0 {
 		t.Fatal("invalid reference started worker or persisted a turn")
 	}
-	message := fmt.Sprintf("请核对 @[漏洞#%d 测试]", fid)
+	message := fmt.Sprintf("Please check @[finding#%d Test]", fid)
 	if w := send(message); w.Code != 200 {
 		t.Fatalf("send: %d %s", w.Code, w.Body)
 	}
@@ -211,7 +211,7 @@ func TestChatMentionWorkerReceivesServerDetails(t *testing.T) {
 }
 
 func TestChatMentionBoundedJSON(t *testing.T) {
-	long := strings.Repeat("中文", 10000)
+	long := strings.Repeat("…—", 10000)
 	items := make([]any, 102)
 	for i := range items {
 		items[i] = long
@@ -230,7 +230,7 @@ func TestChatMentionCatalogAndContext(t *testing.T) {
 	s, fid := newRetestServer(t)
 	pg := s.m.pg
 	var cid int64
-	if err := pg.QueryRow(`INSERT INTO companies(name,nkey) VALUES('引用测试公司','mention-test-company') RETURNING id`).Scan(&cid); err != nil {
+	if err := pg.QueryRow(`INSERT INTO companies(name,nkey) VALUES('Reference test company','mention-test-company') RETURNING id`).Scan(&cid); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _, _ = pg.Exec(`DELETE FROM companies WHERE id=$1`, cid) })
@@ -238,22 +238,17 @@ func TestChatMentionCatalogAndContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	var refs strings.Builder
-	fmt.Fprintf(&refs, "分析 @[漏洞#%d 客户端伪造标题] @[企业#%d 公司] ", fid, cid)
+	fmt.Fprintf(&refs, "Analyze @[finding#%d Client-forged title] @[company#%d Company] ", fid, cid)
 	for _, kind := range []string{"root_domain", "subdomain", "ip", "app", "service", "endpoint"} {
 		var id int64
 		if err := pg.QueryRow(`INSERT INTO assets(type,company_id,domain,ip,app_name,url,method,extra)
-          VALUES($1,$2,$3,'192.0.2.81','引用测试应用',$4,'GET','{"note":"参数和扩展信息"}') RETURNING id`,
+          VALUES($1,$2,$3,'192.0.2.81','Reference test application',$4,'GET','{"note":"Parameters and extra information"}') RETURNING id`,
 			kind, cid, kind+".mention.example", "https://"+kind+".mention.example/path").Scan(&id); err != nil {
 			t.Fatal(err)
 		}
 		t.Cleanup(func() { _, _ = pg.Exec(`DELETE FROM assets WHERE id=$1`, id) })
-		label := ""
-		for name, value := range chatMentionKinds {
-			if value == kind {
-				label = name
-			}
-		}
-		fmt.Fprintf(&refs, "@[%s#%d 条目] ", label, id)
+		label := map[string]string{"root_domain": "domain", "subdomain": "subdomain", "ip": "ip", "app": "application", "service": "service", "endpoint": "endpoint"}[kind]
+		fmt.Fprintf(&refs, "@[%s#%d Item] ", label, id)
 		items, err := pg.SearchChatMentions(t.Context(), kind, fmt.Sprint(id))
 		if err != nil || len(items) == 0 || items[0].ID != id || items[0].Kind != kind {
 			t.Fatalf("search %s: %+v %v", kind, items, err)
@@ -267,30 +262,30 @@ func TestChatMentionCatalogAndContext(t *testing.T) {
 			}
 		}
 	}
-	if _, err := pg.Exec(`UPDATE findings SET report='完整报告内容',summary='最新摘要' WHERE id=$1`, fid); err != nil {
+	if _, err := pg.Exec(`UPDATE findings SET report='Complete report contents',summary='Latest summary' WHERE id=$1`, fid); err != nil {
 		t.Fatal(err)
 	}
 	msg, err := composeChatMentionMessage(pg, refs.String())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"完整报告内容", "最新摘要", "original proof", "mention.example", "引用测试公司", "参数和扩展信息"} {
+	for _, want := range []string{"Complete report contents", "Latest summary", "original proof", "mention.example", "Reference test company", "Parameters and extra information"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("context missing %s", want)
 		}
 	}
-	if _, err := composeChatMentionMessage(pg, "@[漏洞#9223372036854775807]"); err == nil {
+	if _, err := composeChatMentionMessage(pg, "@[finding#9223372036854775807]"); err == nil {
 		t.Fatal("accepted missing record")
 	}
 	for _, kind := range []string{"finding", "company", "asset", ""} {
-		r := httptest.NewRequest("GET", "/api/chat/mentions?kind="+kind+"&q="+url.QueryEscape("引用"), nil)
+		r := httptest.NewRequest("GET", "/api/chat/mentions?kind="+kind+"&q="+url.QueryEscape("Reference"), nil)
 		w := httptest.NewRecorder()
 		s.searchChatMentions(w, r)
 		if w.Code != 200 {
 			t.Fatalf("search %s: %d %s", kind, w.Code, w.Body)
 		}
 	}
-	for _, query := range []string{"kind=unsupported", "q=" + url.QueryEscape(strings.Repeat("字", 201))} {
+	for _, query := range []string{"kind=unsupported", "q=" + url.QueryEscape(strings.Repeat("…", 201))} {
 		w := httptest.NewRecorder()
 		s.searchChatMentions(w, httptest.NewRequest("GET", "/api/chat/mentions?"+query, nil))
 		if w.Code != 400 {
@@ -311,14 +306,14 @@ func TestChatMentionConversationReceivesServerDetails(t *testing.T) {
 		if !strings.Contains(string(blob), "original proof") || !strings.Contains(string(blob), "Snapshot of user-referenced records") {
 			t.Errorf("model did not receive resolved evidence: %s", blob)
 		}
-		return llm.Message{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock("已读取引用")}}, "end_turn", llm.Usage{}, nil
+		return llm.Message{Role: llm.RoleAssistant, Content: []llm.ContentBlock{llm.TextBlock("References read")}}, "end_turn", llm.Usage{}, nil
 	}})
-	c, err := s.m.pg.CreateConversation("auto", "引用测试", nil)
+	c, err := s.m.pg.CreateConversation("auto", "Reference test", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { waitRetestIdle(t, s); _, _ = s.m.pg.Exec(`DELETE FROM conversations WHERE id=$1`, c.ID) })
-	message := fmt.Sprintf("请查看 @[漏洞#%d 示例]", fid)
+	message := fmt.Sprintf("Please inspect @[finding#%d Example]", fid)
 	body, _ := json.Marshal(map[string]any{"message": message})
 	w := retestRequest(s.pgSendConversationMessage, http.MethodPost, c.ID, string(body))
 	if w.Code != 202 {
@@ -344,7 +339,7 @@ func TestChatMentionConversationReceivesServerDetails(t *testing.T) {
 	if !foundUser || !foundResult {
 		t.Fatalf("turn incomplete: user=%v result=%v", foundUser, foundResult)
 	}
-	w = retestRequest(s.pgSendConversationMessage, http.MethodPost, c.ID, `{"message":"@[漏洞#9223372036854775807]"}`)
+	w = retestRequest(s.pgSendConversationMessage, http.MethodPost, c.ID, `{"message":"@[finding#9223372036854775807]"}`)
 	if w.Code != 400 {
 		t.Fatalf("missing ref send: %d %s", w.Code, w.Body)
 	}

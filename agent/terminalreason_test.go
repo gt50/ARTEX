@@ -101,12 +101,12 @@ func TestTerminalTextAbortedPreservesPartialOutput(t *testing.T) {
 	cancel(AbortPausedByUser)
 	summary, detail := terminalText(ctx, &harness.Terminal{
 		Reason: harness.ReasonAbortedStreaming,
-		Text:   "已经生成的半段回答",
+		Text:   "Partially generated answer",
 	}, &runTrace{startedAt: time.Now()})
 	if !strings.Contains(summary, "paused by user") {
 		t.Fatalf("abort summary lost cause: %q", summary)
 	}
-	if !strings.Contains(detail, "已经生成的半段回答") {
+	if !strings.Contains(detail, "Partially generated answer") {
 		t.Fatalf("abort detail lost partial output: %s", detail)
 	}
 }
@@ -160,10 +160,10 @@ func TestAbortCausesAreWellFormed(t *testing.T) {
 }
 
 func TestFirstLineCapsByRuneNotByte(t *testing.T) {
-	if got := firstLine(strings.Repeat("恢复", 10), 5); got != "恢复恢复恢…" {
+	if got := firstLine(strings.Repeat("…—", 10), 5); got != "…—…—……" {
 		t.Fatalf("firstLine split a Unicode character: %q", got)
 	}
-	if got := firstLine("头\n尾", 100); got != "头" {
+	if got := firstLine("Head\nTail", 100); got != "Head" {
 		t.Fatalf("firstLine did not stop at newline: %q", got)
 	}
 }

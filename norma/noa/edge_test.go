@@ -187,19 +187,19 @@ func TestSummaryLengthBoundaries(t *testing.T) {
 	}
 }
 
-// Length is counted in runes, so a CJK summary is not rejected for being three
+// Length is counted in runes, so a multibyte summary is not rejected for being three
 // times its apparent size.
 func TestSummaryLengthCountsRunes(t *testing.T) {
 	msgs, st := fixture(t, 6, 2000)
-	cjk := strings.Repeat("认证方案设计与实现决策记录", 5) // 65 runes, 195 bytes
-	if len([]rune(cjk)) < 50 || len(cjk) < 150 {
-		t.Fatalf("fixture is wrong: %d runes, %d bytes", len([]rune(cjk)), len(cjk))
+	multibyte := strings.Repeat("…—€™…—€™…—€™…", 5) // 65 runes, 195 bytes
+	if len([]rune(multibyte)) < 50 || len(multibyte) < 150 {
+		t.Fatalf("fixture is wrong: %d runes, %d bytes", len([]rune(multibyte)), len(multibyte))
 	}
 	res := applyOne(t, msgs, st, newMemArchiver(), CompressRange{
-		StartRef: "m00002", EndRef: "m00005", Summary: cjk,
+		StartRef: "m00002", EndRef: "m00005", Summary: multibyte,
 	})
 	if len(res.Errors) != 0 {
-		t.Fatalf("a CJK summary above the rune minimum was rejected: %v", res.Errors)
+		t.Fatalf("a multibyte summary above the rune minimum was rejected: %v", res.Errors)
 	}
 }
 
@@ -263,7 +263,7 @@ func TestCompressSameBlockBothEnds(t *testing.T) {
 // --- Unicode and odd content --------------------------------------------
 
 func TestCompressPreservesUnicodeInArchive(t *testing.T) {
-	content := "错误：认证失败 🔐 at auth/jwt.go:42\n" + strings.Repeat("日志行内容。", 900)
+	content := "Error: authentication failed 🔐 at auth/jwt.go:42\n" + strings.Repeat("Log entry.", 900)
 	msgs := []CoreMessage{
 		msg("u0", RoleUser, CTText, "the task"),
 		msg("cjk", RoleAssistant, CTText, content),
@@ -284,7 +284,7 @@ func TestCompressPreservesUnicodeInArchive(t *testing.T) {
 		t.Fatalf("no block: %v", res.Errors)
 	}
 	body := arch.content(res.BlocksCreated[0].ArchivePath)
-	if !strings.Contains(body, "错误：认证失败 🔐") {
+	if !strings.Contains(body, "Error: authentication failed 🔐") {
 		t.Fatal("the archive mangled non-ASCII content")
 	}
 	if !strings.Contains(body, "auth/jwt.go:42") {

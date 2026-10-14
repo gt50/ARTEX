@@ -126,26 +126,26 @@ func uploadZip(t *testing.T, skillDir string, filename string, data []byte) (*ht
 	return rr, out
 }
 
-const zhSkillMD = "---\nname: 中文技能\ndescription: 测试\n---\n正文\n"
+const zhSkillMD = "---\nname: 中文技能\ndescription: Test skill\n---\nBody\n"
 
 // A zstd-compressed archive (WinZip's optional compression method) used to blow up with
 // "zip: unsupported compression"; it now installs like any Deflate archive.
-func TestUploadSkillZstdAndChineseNames(t *testing.T) {
+func TestUploadSkillZstdAndEnglishNames(t *testing.T) {
 	dir := t.TempDir()
 	data := buildZip(t,
-		zipFile{name: "中文技能/SKILL.md", body: zhSkillMD, method: zipMethodZstd},
-		zipFile{name: "中文技能/参考/说明 文档.md", body: "参考", method: zipMethodZstd},
-		zipFile{name: "中文技能/scripts/run.py", body: "print(1)", method: zip.Deflate},
+		zipFile{name: "english-skill/SKILL.md", body: "---\nname: english-skill\ndescription: Test skill\n---\nBody\n", method: zipMethodZstd},
+		zipFile{name: "english-skill/references/guide document.md", body: "Reference", method: zipMethodZstd},
+		zipFile{name: "english-skill/scripts/run.py", body: "print(1)", method: zip.Deflate},
 	)
-	rr, out := uploadZip(t, dir, "中文技能.zip", data)
+	rr, out := uploadZip(t, dir, "english-skill.zip", data)
 	if rr.Code != 201 {
 		t.Fatalf("status = %d, body = %s", rr.Code, rr.Body)
 	}
-	if out["name"] != "中文技能" {
-		t.Fatalf("name = %v, want Chinese skills", out["name"])
+	if out["name"] != "english-skill" {
+		t.Fatalf("name = %v, want english-skill", out["name"])
 	}
-	for _, rel := range []string{"SKILL.md", "参考/说明 文档.md", "scripts/run.py"} {
-		if _, err := os.Stat(filepath.Join(dir, "中文技能", rel)); err != nil {
+	for _, rel := range []string{"SKILL.md", "references/guide document.md", "scripts/run.py"} {
+		if _, err := os.Stat(filepath.Join(dir, "english-skill", rel)); err != nil {
 			t.Errorf("missing extracted file %q: %v", rel, err)
 		}
 	}
@@ -164,7 +164,7 @@ func TestUploadSkillGBKNames(t *testing.T) {
 	dir := t.TempDir()
 	data := buildZip(t,
 		zipFile{name: gbk("中文技能/SKILL.md"), body: zhSkillMD, method: zip.Deflate, nonUTF8: true},
-		zipFile{name: gbk("中文技能/参考资料.md"), body: "内容", method: zip.Deflate, nonUTF8: true},
+		zipFile{name: gbk("中文技能/参考资料.md"), body: "Content", method: zip.Deflate, nonUTF8: true},
 	)
 	rr, out := uploadZip(t, dir, "skill.zip", data)
 	if rr.Code != 201 {
@@ -178,7 +178,7 @@ func TestUploadSkillGBKNames(t *testing.T) {
 	}
 }
 
-// An archive we genuinely cannot decode should name the method in Chinese instead of
+// An archive we genuinely cannot decode should name the method in English instead of
 // surfacing "zip: unsupported compression algorithm".
 func TestUploadSkillUnsupportedMethod(t *testing.T) {
 	data := buildZip(t,
@@ -190,7 +190,7 @@ func TestUploadSkillUnsupportedMethod(t *testing.T) {
 	}
 	msg, _ := out["error"].(string)
 	if !strings.Contains(msg, "Deflate64") || !strings.Contains(msg, "unsupported compression method") {
-		t.Fatalf("error = %q, want a Chinese message naming Deflate64", msg)
+		t.Fatalf("error = %q, want an English message naming Deflate64", msg)
 	}
 }
 

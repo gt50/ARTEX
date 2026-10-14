@@ -55,7 +55,7 @@ func TestBuildFindingAssetTree(t *testing.T) {
 	}
 	defer d.Close()
 
-	tk, err := d.CreateTask("资产树测试", "目标", nil, 0, 0)
+	tk, err := d.CreateTask("Asset tree testing", "Target", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,15 +78,15 @@ func TestBuildFindingAssetTree(t *testing.T) {
 	})
 
 	// Only hang the discovery on the deepest endpoint, and the ancestor chain must be repaired by the paper mulberry itself.
-	if _, err := d.AddFinding(tk.ID, 0, "XSS", "反射型 XSS", "high", "s", "e", "w", []int64{epID}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "XSS", "Reflected XSS", "high", "s", "e", "w", []int64{epID}); err != nil {
 		t.Fatal(err)
 	}
 	// A link directly attached to the service to verify the difference between Self and Total.
-	if _, err := d.AddFinding(tk.ID, 0, "Info", "信息泄露", "low", "s", "e", "w", []int64{svcID}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "Info", "information leakage", "low", "s", "e", "w", []int64{svcID}); err != nil {
 		t.Fatal(err)
 	}
 	// Asset row does not exist (asset deleted) → Bucket is not associated.
-	if _, err := d.AddFinding(tk.ID, 0, "Misc", "孤儿", "medium", "s", "e", "w", []int64{999000111}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "Misc", "orphan", "medium", "s", "e", "w", []int64{999000111}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -161,7 +161,7 @@ func TestFindingAssetScopeFilter(t *testing.T) {
 	}
 	defer d.Close()
 
-	tk, err := d.CreateTask("资产筛选测试", "目标", nil, 0, 0)
+	tk, err := d.CreateTask("Asset Screening Test", "Target", nil, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,18 +175,18 @@ func TestFindingAssetScopeFilter(t *testing.T) {
 	subID := seedTreeAsset(t, d, "subdomain", map[string]any{"domain": sub, "root_domain": root})
 	otherID := seedTreeAsset(t, d, "root_domain", map[string]any{"domain": other, "root_domain": other})
 
-	if _, err := d.AddFinding(tk.ID, 0, "A", "子域名上的", "high", "s", "e", "w", []int64{subID}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "A", "on subdomain", "high", "s", "e", "w", []int64{subID}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.AddFinding(tk.ID, 0, "B", "别的根域名上的", "high", "s", "e", "w", []int64{otherID}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "B", "On other root domain names", "high", "s", "e", "w", []int64{otherID}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := d.AddFinding(tk.ID, 0, "C", "没有资产的", "high", "s", "e", "w", nil); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "C", "no assets", "high", "s", "e", "w", nil); err != nil {
 		t.Fatal(err)
 	}
 	// The discovery pointing to a deleted asset is "unassociated" just like the asset_ids is empty - the bucket of the tree accepts it,
 	// The list filter must also be checked. Inconsistency in the two calibers will cause the number on the bucket to be greater than the number of items after clicking on it.
-	if _, err := d.AddFinding(tk.ID, 0, "D", "资产已删除", "high", "s", "e", "w", []int64{999000333}); err != nil {
+	if _, err := d.AddFinding(tk.ID, 0, "D", "Asset deleted", "high", "s", "e", "w", []int64{999000333}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -196,11 +196,11 @@ func TestFindingAssetScopeFilter(t *testing.T) {
 		scope string
 		want  int
 	}{
-		{"whole subtree", assetKey(rootID), 1},      // There is only the subdomain name under the root domain name
-		{"leaf node", assetKey(subID), 1},       // subdomain itself
-		{"another tree", assetKey(otherID), 1},     // Do not include assets from another tree.
+		{"whole subtree", assetKey(rootID), 1},    // There is only the subdomain name under the root domain name
+		{"leaf node", assetKey(subID), 1},         // subdomain itself
+		{"another tree", assetKey(otherID), 1},    // Do not include assets from another tree.
 		{"unassigned", FindingUnassignedAsset, 2}, // asset_ids is empty + points to deleted assets
-		{"nonexistent node", "a:999000222", 0},       // There is no such node under current filtering → Empty result, not no filtering
+		{"nonexistent node", "a:999000222", 0},    // There is no such node under current filtering → Empty result, not no filtering
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
