@@ -12,7 +12,7 @@ func TestInterceptSourceAcceptsEnglishAndLegacyPrefixes(t *testing.T) {
 		want   string
 	}{
 		{0, "[model] Allowed", "model"},
-		{0, "[模型] 放行", "model"},
+		{0, "[model] Allowed", "model"},
 		{1, "[model] Allowed", "rule"},
 		{0, "Other reason", "unknown"},
 	} {

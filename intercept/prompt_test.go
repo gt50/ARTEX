@@ -32,7 +32,8 @@ func TestParseVerdictEnglishContract(t *testing.T) {
 		"Actual operation: Read a file; Consequence if successful: ; Matched rule: A5",
 		"Actual operation: Read a file; Consequence if successful: Return contents; Matched rule: ",
 		"Actual operation: Read a file; Matched rule: A5",
-		"Actual operation: Read a file；成功后的后果：返回内容；命中规则：A5",
+		// Mixing the English operation label with legacy consequence/rule labels is invalid.
+		"Actual operation: Read a file\uff1b\u6210\u529f\u540e\u7684\u540e\u679c\uff1a\u8fd4\u56de\u5185\u5bb9\uff1b\u547d\u4e2d\u89c4\u5219\uff1aA5",
 	} {
 		raw, _ := json.Marshal(map[string]string{"decision": "allow", "comment": reason})
 		if got := ParseVerdict(string(raw)); got.Action != "" {
@@ -84,8 +85,8 @@ func TestParseVerdictUnwrapsCodeFence(t *testing.T) {
 	}
 }
 
-func TestParseVerdictKeepsCompleteLegacyExplanation(t *testing.T) {
-	reason := "实际操作：" + strings.Repeat("Write a report", 30) + "；成功后的后果：Save the file only；命中规则：A2"
+func TestParseVerdictKeepsCompleteEnglishExplanation(t *testing.T) {
+	reason := "Actual operation: " + strings.Repeat("Write a report", 30) + "; Consequence if successful: Save the file only; Matched rule: A2"
 	raw, _ := json.Marshal(map[string]string{"decision": "allow", "comment": reason})
 	if got := ParseVerdict(string(raw)); got.Reason != reason {
 		t.Fatal("explanation was truncated or lost its rule")

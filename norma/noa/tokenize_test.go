@@ -12,12 +12,13 @@ func TestDefaultCountTokens(t *testing.T) {
 		{"ascii exact multiple", "abcd", 1},
 		{"ascii rounds up", "abcde", 2},
 		{"ascii single", "a", 1},
-		{"cjk one per rune", "中文", 2},
-		{"cjk longer", "你好世界", 4},
-		{"hiragana", "ひらがな", 4},
-		{"hangul", "한국어", 3},
+		{"English phrase", "test", 1},
+		{"English longer phrase", "Hello world!", 3},
+		{"hiragana code points", string([]rune{0x3041, 0x3042, 0x3043, 0x3044}), 4},
+		{"hangul code points", string([]rune{0xac00, 0xac01, 0xac02}), 3},
+		// Unicode classification uses numeric code points, not language-dependent words.
 		// 4 CJK + 8 ASCII -> 4 + ceil(8/4) = 6
-		{"mixed", "认证方案 auth.go", 4 + 2},
+		{"mixed Unicode and English", string([]rune{0x4e00, 0x4e01, 0x4e02, 0x4e03}) + " auth.go", 4 + 2},
 	}
 	for _, c := range cases {
 		if got := DefaultCountTokens(c.in); got != c.want {
@@ -35,7 +36,7 @@ func TestDefaultCountTokensAstralPlane(t *testing.T) {
 }
 
 func TestEstimateTokensFast(t *testing.T) {
-	cases := map[string]int{"": 0, "abcd": 1, "abcde": 2, "中文测试": 1}
+	cases := map[string]int{"": 0, "abcd": 1, "abcde": 2, "…—€™": 1}
 	for in, want := range cases {
 		if got := EstimateTokensFast(in); got != want {
 			t.Errorf("EstimateTokensFast(%q) = %d, want %d", in, got, want)
@@ -54,7 +55,7 @@ func TestCountMessageTokens(t *testing.T) {
 }
 
 func TestIsCJK(t *testing.T) {
-	for _, r := range []rune{'中', '文', 'あ', 'ア', '한'} {
+	for _, r := range []rune{0x4e00, 0x9fff, 0x3040, 0x30ff, 0xac00, 0xd7af} {
 		if !isCJK(r) {
 			t.Errorf("isCJK(%q) = false, want true", r)
 		}

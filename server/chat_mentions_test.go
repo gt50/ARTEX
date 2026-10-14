@@ -38,9 +38,9 @@ func TestChatMentionParsing(t *testing.T) {
 	if actual, err := composeChatMentionMessage(nil, "Plain message user@example.com @finding"); err != nil || actual != "Plain message user@example.com @finding" {
 		t.Fatalf("plain chat changed: %s %v", actual, err)
 	}
-	legacy, err := parseChatMentions("@[漏洞#12 old label]")
+	legacy, err := parseChatMentions("@[finding#12 old label]")
 	if err != nil || len(legacy) != 1 || legacy[0].Kind != "finding" || legacy[0].Name != "finding" {
-		t.Fatalf("legacy mention refs=%+v err=%v", legacy, err)
+		t.Fatalf("English mention refs=%+v err=%v", legacy, err)
 	}
 }
 

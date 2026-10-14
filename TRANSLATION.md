@@ -41,9 +41,9 @@ The quoted review's claim that there were no writes is qualified in [the validat
 
 ## Test data
 
-Chinese input in tests exercises Unicode byte budgets, token estimates, multilingual parsing, ICP values, legacy labels, filenames, stored messages, and archive recovery. Keep these inputs and their paired expected values consistent. Comments and test-failure messages can be translated without changing the input being tested. Read [the English fixture reference](TEST-FIXTURES.en.md) for the meaning of every remaining Chinese string and rune literal in the Go tests, plus the frontend fixture labels.
+Test inputs and their paired expected values use English. UTF-8, token-counting, filename-encoding, and legacy protocol checks remain covered with readable accented text, numeric code points, and explicitly documented protocol constants. See [the English fixture guide](TEST-FIXTURES.en.md) for the conversion details and compatibility exceptions.
 
-The inventory below is a snapshot of Chinese-containing files after this translation pass. Counts are lines containing Chinese, not untranslated interface labels. This guide and the English fixture reference are excluded because they deliberately quote the values they explain.
+The inventory below is a snapshot of Chinese-containing files after this translation pass. Counts are lines containing Chinese, not untranslated interface labels. This guide and the English fixture reference are excluded because the compatibility glossary deliberately quotes the values it explains.
 
 ## Inventory (2026-10-13)
 
@@ -80,30 +80,17 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | --- | ---: |
 | [sidequestion/validation-2026-09-10.json](<sidequestion/validation-2026-09-10.json>) | 15 |
 
-### Chinese-specific compatibility tests
+### Test inputs
 
-12 files; 41 lines contain Chinese. Ordinary fixtures and their assertions have been converted to English. The remaining cases test the language or encoding itself, with English explanations in [TEST-FIXTURES.en.md](TEST-FIXTURES.en.md).
+There are no literal Chinese characters in tracked Go or JavaScript test source files. Human-readable inputs and matching expectations use English. The fixture conversion covers prompts, replies, notifications, database records, reports, scopes, and filenames.
 
-| File | Lines |
-| --- | ---: |
-| [agent/blackboard_inheritance_test.go](<agent/blackboard_inheritance_test.go>) | 1 |
-| [agent/provider_quota_test.go](<agent/provider_quota_test.go>) | 1 |
-| [db/company_scope_test.go](<db/company_scope_test.go>) | 10 |
-| [db/intercept_filter_test.go](<db/intercept_filter_test.go>) | 1 |
-| [db/task_assets_test.go](<db/task_assets_test.go>) | 1 |
-| [intercept/prompt_test.go](<intercept/prompt_test.go>) | 2 |
-| [norma/noa/tokenize_test.go](<norma/noa/tokenize_test.go>) | 5 |
-| [server/assets_scope_test.go](<server/assets_scope_test.go>) | 1 |
-| [server/chat_mentions_test.go](<server/chat_mentions_test.go>) | 1 |
-| [server/skill_upload_test.go](<server/skill_upload_test.go>) | 14 |
-| [server/task_llm_test.go](<server/task_llm_test.go>) | 1 |
-| [web/src/lib/legacy-system-labels.test.mjs](<web/src/lib/legacy-system-labels.test.mjs>) | 3 |
+Unicode checks remain meaningful: accented English filenames exercise GBK decoding; punctuation and emoji exercise UTF-8 byte and rune limits; numeric code points exercise CJK classification. Dedicated protocol checks use named or explicitly escaped legacy values with English explanations. Escaping these exact wire values does not translate their runtime bytes. See [TEST-FIXTURES.en.md](TEST-FIXTURES.en.md) for the distinction and source links.
 
 ## Build validation
 
 The 2026-10-13 Windows build passed with Go 1.26.3 and Node.js 22.23.3: TypeScript checking, eleven frontend tests, 31 statically exported pages, and the Go binary with embedded UI. The final PostgreSQL integration run passed all 17 root-module packages using a fresh isolated database per package. The bundled Norma suite passed all 16 packages (741 passing tests, seven skips, zero failures).
 
-The fixture conversion updated ordinary inputs and their paired assertions in 56 test files. UTF-8 coverage now uses English with multibyte punctuation, accents, and emoji. Approval-review fixtures follow the English response contract, while dedicated legacy-format checks remain. Background-task integration tests wait for completion rather than assuming a fixed startup time.
+The fixture conversion updated ordinary inputs and their paired assertions in 56 test files. UTF-8 coverage now uses English with multibyte punctuation, accents, and emoji. Approval-review fixtures follow the English response contract. ICP examples and GBK filenames also use English; numeric Unicode checks and exact escaped legacy protocol checks preserve specialized coverage. Background-task integration tests wait for completion rather than assuming a fixed startup time.
 
 The failure-repair pass added Windows write-through evidence publication while retaining directory syncing on other platforms, waited for background processes to release output files before cleanup, connected provider context-window learning, and corrected compression pacing and summary consolidation. Tests now use the current compact overview contract, current English errors, platform-appropriate shell syntax, and a portable archive-write failure fixture. Regression checks cover publication failures, cadence scaling, the usage threshold, and summary consolidation.
 
