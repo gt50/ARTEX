@@ -1,4 +1,5 @@
 "use client";
+import { AuthEventSource } from "@/lib/auth-event-source";
 
 import * as React from "react";
 
@@ -99,7 +100,7 @@ export function UpdateCard() {
   //Subscribe to update progress. SSE does not use Next's /api rewrite (that layer will be buffered and events cannot be pushed out).
   const openStream = React.useCallback(
     (fromVersion: string) => {
-      const es = new EventSource(sseUrl("/api/update/stream"));
+      const es = new AuthEventSource(sseUrl("/api/update/stream"));
       es.onmessage = (ev) => {
         let p: UpdateProgress;
         try {

@@ -1,4 +1,5 @@
 "use client";
+import { AuthEventSource } from "@/lib/auth-event-source";
 
 import * as React from "react";
 import { Input } from "@/components/ui/input";
@@ -64,7 +65,7 @@ export default function LogsPage() {
       setLines(MOCK_LOGS);
       return;
     }
-    const es = new EventSource(sseUrl("/api/logs/stream?since=0"));
+    const es = new AuthEventSource(sseUrl("/api/logs/stream?since=0"));
     es.onmessage = (e) => {
       if (pausedRef.current) return;
       try {

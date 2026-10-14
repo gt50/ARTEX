@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"io"
+	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -47,6 +48,23 @@ func (s *Server) wsRel(abs string) string {
 	return filepath.ToSlash(rel)
 }
 
+func (s *Server) wsRoot(w http.ResponseWriter) *os.Root {
+	root, err := os.OpenRoot(s.m.dir)
+	if err != nil {
+		writeErr(w, 500, "Workspace unavailable")
+		return nil
+	}
+	return root
+}
+
+func (s *Server) wsName(abs string) string {
+	name := s.wsRel(abs)
+	if name == "" {
+		return "."
+	}
+	return name
+}
+
 type wsEntry struct {
 	Name  string `json:"name"`
 	Path  string `json:"path"`
@@ -57,12 +75,17 @@ type wsEntry struct {
 
 // GET /api/workspace/list?path=<rel>
 func (s *Server) wsList(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	abs, ok := s.wsResolve(r.URL.Query().Get("path"))
 	if !ok {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	fi, err := os.Stat(abs)
+	fi, err := root.Stat(s.wsName(abs))
 	if err != nil {
 		writeErr(w, 404, "Path not found")
 		return
@@ -71,7 +94,7 @@ func (s *Server) wsList(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Not a directory")
 		return
 	}
-	ents, err := os.ReadDir(abs)
+	ents, err := fs.ReadDir(root.FS(), s.wsName(abs))
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -103,12 +126,23 @@ func (s *Server) wsList(w http.ResponseWriter, r *http.Request) {
 // GET /api/workspace/read?path=<rel> — inline text for view/edit. Binary or oversize
 // files return {binary:true}/{too_large:true} with no content (use download instead).
 func (s *Server) wsRead(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	abs, ok := s.wsResolve(r.URL.Query().Get("path"))
 	if !ok {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	fi, err := os.Stat(abs)
+	f, err := root.Open(s.wsName(abs))
+	if err != nil {
+		writeErr(w, 404, "File not found")
+		return
+	}
+	defer f.Close()
+	fi, err := f.Stat()
 	if err != nil {
 		writeErr(w, 404, "File not found")
 		return
@@ -121,7 +155,7 @@ func (s *Server) wsRead(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"path": s.wsRel(abs), "size": fi.Size(), "too_large": true, "binary": true})
 		return
 	}
-	data, err := os.ReadFile(abs)
+	data, err := io.ReadAll(io.LimitReader(f, maxWorkspaceRead+1))
 	if err != nil {
 		writeErr(w, 500, err.Error())
 		return
@@ -135,6 +169,11 @@ func (s *Server) wsRead(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/workspace/write  {path, content} — create/overwrite a text file.
 func (s *Server) wsWrite(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	var req struct {
 		Path    string `json:"path"`
 		Content string `json:"content"`
@@ -148,15 +187,15 @@ func (s *Server) wsWrite(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	if fi, err := os.Stat(abs); err == nil && fi.IsDir() {
+	if fi, err := root.Stat(s.wsName(abs)); err == nil && fi.IsDir() {
 		writeErr(w, 400, "Target is a directory")
 		return
 	}
-	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
+	if err := root.MkdirAll(s.wsName(filepath.Dir(abs)), 0o755); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
-	if err := os.WriteFile(abs, []byte(req.Content), 0o644); err != nil {
+	if err := root.WriteFile(s.wsName(abs), []byte(req.Content), 0o644); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
@@ -165,6 +204,11 @@ func (s *Server) wsWrite(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/workspace/mkdir  {path}
 func (s *Server) wsMkdir(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	var req struct {
 		Path string `json:"path"`
 	}
@@ -177,7 +221,7 @@ func (s *Server) wsMkdir(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	if err := os.MkdirAll(abs, 0o755); err != nil {
+	if err := root.MkdirAll(s.wsName(abs), 0o755); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
@@ -187,6 +231,11 @@ func (s *Server) wsMkdir(w http.ResponseWriter, r *http.Request) {
 // DELETE /api/workspace/delete?path=<rel> — removes a file or a directory tree
 // (confined to the work dir; the root itself can't be deleted).
 func (s *Server) wsDelete(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	abs, ok := s.wsResolve(r.URL.Query().Get("path"))
 	if !ok {
 		writeErr(w, 400, "Invalid path")
@@ -196,11 +245,11 @@ func (s *Server) wsDelete(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Cannot delete the workspace root")
 		return
 	}
-	if _, err := os.Stat(abs); err != nil {
+	if _, err := root.Lstat(s.wsName(abs)); err != nil {
 		writeErr(w, 404, "Path not found")
 		return
 	}
-	if err := os.RemoveAll(abs); err != nil {
+	if err := root.RemoveAll(s.wsName(abs)); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
@@ -209,12 +258,23 @@ func (s *Server) wsDelete(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/workspace/download?path=<rel> — stream a file as an attachment.
 func (s *Server) wsDownload(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	abs, ok := s.wsResolve(r.URL.Query().Get("path"))
 	if !ok {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	fi, err := os.Stat(abs)
+	f, err := root.Open(s.wsName(abs))
+	if err != nil {
+		writeErr(w, 404, "File not found")
+		return
+	}
+	defer f.Close()
+	fi, err := f.Stat()
 	if err != nil || fi.IsDir() {
 		writeErr(w, 404, "File not found")
 		return
@@ -222,17 +282,22 @@ func (s *Server) wsDownload(w http.ResponseWriter, r *http.Request) {
 	name := filepath.Base(abs)
 	// RFC 5987 filename* keeps non-ASCII names intact; plain filename is the fallback.
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+sanitizeFilename(name)+"\"; filename*=UTF-8''"+url.PathEscape(name))
-	http.ServeFile(w, r, abs)
+	http.ServeContent(w, r, name, fi.ModTime(), f)
 }
 
 // POST /api/workspace/upload?path=<dir> — multipart form field "file" (one or more).
 func (s *Server) wsUpload(w http.ResponseWriter, r *http.Request) {
+	root := s.wsRoot(w)
+	if root == nil {
+		return
+	}
+	defer root.Close()
 	dirAbs, ok := s.wsResolve(r.URL.Query().Get("path"))
 	if !ok {
 		writeErr(w, 400, "Invalid path")
 		return
 	}
-	if fi, err := os.Stat(dirAbs); err != nil || !fi.IsDir() {
+	if fi, err := root.Stat(s.wsName(dirAbs)); err != nil || !fi.IsDir() {
 		writeErr(w, 400, "Target directory does not exist")
 		return
 	}
@@ -256,7 +321,7 @@ func (s *Server) wsUpload(w http.ResponseWriter, r *http.Request) {
 		if !okd {
 			continue
 		}
-		if err := saveUpload(hdr, destAbs); err != nil {
+		if err := saveWorkspaceUpload(root, hdr, s.wsName(destAbs)); err != nil {
 			writeErr(w, 500, err.Error())
 			return
 		}
@@ -265,13 +330,13 @@ func (s *Server) wsUpload(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"uploaded": saved})
 }
 
-func saveUpload(hdr *multipart.FileHeader, dest string) error {
+func saveWorkspaceUpload(root *os.Root, hdr *multipart.FileHeader, name string) error {
 	src, err := hdr.Open()
 	if err != nil {
 		return err
 	}
 	defer src.Close()
-	out, err := os.Create(dest)
+	out, err := root.Create(name)
 	if err != nil {
 		return err
 	}

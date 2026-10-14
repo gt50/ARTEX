@@ -103,16 +103,12 @@ func verifyJWT(tokenStr string, key []byte) bool {
 	return err == nil && t.Valid
 }
 
-// extractToken reads the JWT from Authorization: Bearer header,
-// artex_token cookie, or ?token= query param (for SSE connections).
+// extractToken accepts credentials only in the Authorization header.
 func extractToken(r *http.Request) string {
 	if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
 		return strings.TrimPrefix(h, "Bearer ")
 	}
-	if c, err := r.Cookie("artex_token"); err == nil && c.Value != "" {
-		return c.Value
-	}
-	return r.URL.Query().Get("token")
+	return ""
 }
 
 // requireAuth wraps h with JWT validation.
@@ -260,6 +256,11 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/auth/login — validates username/password and returns a JWT.
 func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
+	if !s.loginGate.allow(r.RemoteAddr, time.Now()) {
+		w.Header().Set("Retry-After", "60")
+		writeErr(w, http.StatusTooManyRequests, "Too many login attempts; try again later")
+		return
+	}
 	pg := s.pg(w)
 	if pg == nil {
 		return

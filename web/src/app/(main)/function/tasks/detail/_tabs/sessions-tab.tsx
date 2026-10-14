@@ -1,4 +1,5 @@
 "use client";
+import { AuthEventSource } from "@/lib/auth-event-source";
 
 import * as React from "react";
 
@@ -643,7 +644,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
 
   // Refs backing SSE/loading without re-render churn.
   const snapshotRef = React.useRef(0); // task-level snapshot cursor → SSE since=
-  const esRef = React.useRef<EventSource | null>(null);
+  const esRef = React.useRef<AuthEventSource | null>(null);
   const activeKeyRef = React.useRef(mainSessionKey(0)); // current session key (for SSE dispatch/unread)
   const atBottomRef = React.useRef(true); // transcript pinned to bottom?
   const llmToastSeqRef = React.useRef<Set<number>>(new Set());
@@ -969,7 +970,7 @@ export function SessionsTab({ taskId }: { taskId: string }) {
           };
         });
         // Open the single task SSE from the snapshot cursor.
-        const es = new EventSource(
+        const es = new AuthEventSource(
           sseUrl(`/api/exploration/activity/stream?task=${encodeURIComponent(taskId)}&since=${snapshotRef.current}`),
         );
         esRef.current = es;

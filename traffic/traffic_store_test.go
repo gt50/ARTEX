@@ -96,12 +96,12 @@ func TestRecordKeepsBodiesInIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"POST /v1/login HTTP/1.1", "Host: api.example.com", `"password":"P@ssw0rd"`} {
+	for _, want := range []string{"POST /v1/login HTTP/1.1", "Host: api.example.com", `"password":"[REDACTED]"`} {
 		if !strings.Contains(req, want) {
 			t.Fatalf("Raw request is missing %q; got:\n%s", want, req)
 		}
 	}
-	for _, want := range []string{"HTTP 200", `"token":"abc123"`, "Internal test account"} {
+	for _, want := range []string{"HTTP 200", `"token":"[REDACTED]"`, "Internal test account"} {
 		if !strings.Contains(resp, want) {
 			t.Fatalf("Raw response is missing %q; got:\n%s", want, resp)
 		}
@@ -133,9 +133,12 @@ func TestFullTextSearchMatchesBodies(t *testing.T) {
 	if n := hits("password"); n != 1 {
 		t.Fatalf("Search password and hit %d, which should be 1", n)
 	}
-	// Substring inside a token — the default unicode61 tokenizer cannot do this.
-	if n := hits("ssw0r"); n != 1 {
-		t.Fatalf("Search substring ssw0r hits %d, should be 1", n)
+	// Credential values must not reach the full-text index.
+	if n := hits("ssw0r"); n != 0 {
+		t.Fatalf("Search for redacted password hit %d records", n)
+	}
+	if n := hits("abc123"); n != 0 {
+		t.Fatalf("Search for redacted response token hit %d records", n)
 	}
 	if n := hits("Internal test"); n != 1 {
 		t.Fatalf("Searching Chinese hits %d, which should be 1", n)

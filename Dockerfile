@@ -38,6 +38,7 @@ FROM python:3.12-slim-bookworm
 ARG NPM_REGISTRY=https://registry.npmjs.org
 # Use the official npm registry and default Playwright browser download host.
 ENV npm_config_registry=$NPM_REGISTRY
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 #Commonly used tools: ripgrep/curl/vim, plus a batch of recon spare parts (add or delete as needed).
 #Node installs 22.x from NodeSource: the apt nodejs that comes with bookworm is 18, and Playwright requires >=20.
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -56,6 +57,10 @@ RUN npm install -g @playwright/mcp@0.0.83 @playwright/cli@0.1.22 playwright@1.64
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+# Chromium's user trust store is configured at runtime for the generated public
+# capture CA. Keep this after browser installation so tool updates reuse its layer.
+RUN apt-get update && apt-get install -y --no-install-recommends libnss3-tools \
+    && rm -rf /var/lib/apt/lists/*
 #Single binary produced during the build phase (embedded frontend)
 COPY --from=gobuild /out/artex /app/artex
 #Guardian startup script: After the process exits, press the exit code to decide whether to restart it. One-click page update relies on it to complete the change.
@@ -64,10 +69,14 @@ COPY --from=gobuild /out/artex /app/artex
 COPY start.sh /app/start.sh
 # Windows checkouts may use CRLF; the Linux entrypoint needs LF.
 RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/artex /app/start.sh \
-    && mkdir -p /app/auth && ln -s /app/auth/jwt.key /app/jwt.key
+    && groupadd --gid 10001 artex && useradd --uid 10001 --gid 10001 --create-home artex \
+    && mkdir -p /app/auth /app/data && chown artex:artex /app/auth /app/data \
+    && ln -s /app/auth/jwt.key /app/jwt.key
 COPY skills/ /app/skills/
 # Workspace and signing key persist separately; the key stays outside the browsable workspace.
 VOLUME ["/app/data", "/app/auth"]
+ENV HOME=/home/artex ARTEX_CA_DIR=/app/auth/ca ARTEX_CHROMIUM_CA_TRUST=1
+USER 10001:10001
 EXPOSE 8787 8788
 ENTRYPOINT ["/app/start.sh"]
 CMD ["-addr", ":8787", "-proxy", ":8788"]

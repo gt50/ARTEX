@@ -19,7 +19,8 @@ func TestMgmtAPI(t *testing.T) {
 		t.Skip("postgres unavailable — skipping management API test")
 	}
 	td := t.TempDir()
-	s := New(context.Background(), m, td, td, td)
+	s, stopServer := newTestServer(context.Background(), m, td, td, td)
+	defer stopServer()
 	h := s.Handler()
 	tok, err := signJWT(s.jwtKey)
 	if err != nil {
@@ -75,7 +76,11 @@ func TestMgmtAPI(t *testing.T) {
 	// mcp create → visible to planner → resource-side sees planner → delete clears it
 	// Remove any leftover from prior run to keep the test idempotent.
 	m.pg.Exec(`DELETE FROM mcp_servers WHERE name = 't-itest'`)
-	code, out = do("POST", "/api/mcp", map[string]any{"name": "t-itest", "transport": "stdio", "command": "x", "enabled": true})
+	code, _ = do("POST", "/api/mcp", map[string]any{"name": "t-itest", "transport": "stdio", "command": "x", "enabled": true})
+	if code != http.StatusForbidden {
+		t.Fatalf("unapproved stdio registration: %d", code)
+	}
+	code, out = do("POST", "/api/mcp", map[string]any{"name": "t-itest", "transport": "http", "url": "http://127.0.0.1:1/mcp", "enabled": false})
 	if code != 200 {
 		t.Fatalf("create mcp: %d", code)
 	}

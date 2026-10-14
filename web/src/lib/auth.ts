@@ -1,5 +1,4 @@
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; //7 days (seconds)
 
 export interface CurrentUser {
   id: string;
@@ -19,8 +18,8 @@ export const auth = {
 
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
-    //Write cookies synchronously for Next.js middleware server to read
-    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+    // Remove cookies from older clients; the API only accepts header credentials.
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
   clearToken(): void {

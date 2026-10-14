@@ -298,6 +298,9 @@ func (s *Server) toolCreateMCP() actool.CoreTool {
 			var a mcpToolInput
 			_ = json.Unmarshal(in, &a)
 			a.ID = 0
+			if err := validateMCPLaunch(a.toDB()); err != nil {
+				return actool.Errorf(err.Error()), nil
+			}
 			if strings.TrimSpace(a.Name) == "" || strings.TrimSpace(a.Transport) == "" {
 				return actool.Errorf("name and transport are required"), nil
 			}
@@ -317,6 +320,9 @@ func (s *Server) toolUpdateMCP() actool.CoreTool {
 			_ = json.Unmarshal(in, &a)
 			if a.ID == 0 {
 				return actool.Errorf("id is required"), nil
+			}
+			if err := validateMCPLaunch(a.toDB()); err != nil {
+				return actool.Errorf(err.Error()), nil
 			}
 			if _, err := s.m.pg.SaveMCP(a.toDB()); err != nil {
 				return actool.Errorf(err.Error()), nil

@@ -1,14 +1,17 @@
 // Package traffic implements the request-recording subsystem (docs §10): an
 // embedded go-mitmproxy proxy whose addon writes every target HTTP exchange into
 // a human-browsable file tree, with a sidecar SQLite index for paged queries.
-// Full capture, plaintext (no redaction), target HTTP only.
+// Target HTTP capture with credential-field redaction before persistence.
 package traffic
 
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -135,12 +138,14 @@ const TrafficSearchDescription = "Query and record the target traffic captured b
 
 // Traffic runs the recording proxy and owns the file tree + index.
 type Traffic struct {
-	dir   string
-	addr  string
-	db    *sql.DB
-	wmu   sync.Mutex // serializes record() vs DeleteHost (incl. blob GC)
-	seq   atomic.Int64
-	proxy *mproxy.Proxy
+	dir        string
+	addr       string
+	db         *sql.DB
+	wmu        sync.Mutex // serializes record() vs DeleteHost (incl. blob GC)
+	seq        atomic.Int64
+	proxy      *mproxy.Proxy
+	proxyToken string
+	caDir      string
 	// fts reports whether the full-text index is available. False on a driver
 	// build without FTS5: recording and metadata search still work, body search
 	// degrades to unsupported rather than erroring.
@@ -174,10 +179,37 @@ type Traffic struct {
 
 // Open initializes the traffic tree, blob store and SQLite index under dir.
 func Open(dir, addr string) (*Traffic, error) {
-	for _, d := range []string{dir, filepath.Join(dir, "_index"), filepath.Join(dir, "_blobs"), filepath.Join(dir, "_ca")} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
+	caDir := os.Getenv("ARTEX_CA_DIR")
+	if caDir == "" {
+		base, err := os.UserConfigDir()
+		if err != nil {
 			return nil, err
 		}
+		absolute, err := filepath.Abs(dir)
+		if err != nil {
+			return nil, err
+		}
+		hash := sha256.Sum256([]byte(absolute))
+		caDir = filepath.Join(base, "artex", "private-ca", hex.EncodeToString(hash[:8]))
+	}
+	absoluteCA, err := filepath.Abs(caDir)
+	if err != nil {
+		return nil, err
+	}
+	absoluteStore, err := filepath.Abs(filepath.Dir(dir))
+	if err != nil {
+		return nil, err
+	}
+	if rel, err := filepath.Rel(absoluteStore, absoluteCA); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("CA directory must be outside the workspace")
+	}
+	for _, d := range []string{dir, filepath.Join(dir, "_index"), filepath.Join(dir, "_blobs"), caDir} {
+		if err := os.MkdirAll(d, 0o700); err != nil {
+			return nil, err
+		}
+	}
+	if err := os.Chmod(caDir, 0o700); err != nil {
+		return nil, err
 	}
 	// busy_timeout is a per-connection setting, so it belongs in the DSN rather
 	// than in a one-off Exec: the pool opens connections on demand, and an Exec
@@ -195,7 +227,19 @@ func Open(dir, addr string) (*Traffic, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Traffic{dir: dir, addr: addr, db: db, closed: make(chan struct{})}
+	t := &Traffic{dir: dir, addr: addr, db: db, closed: make(chan struct{}), caDir: caDir}
+	t.proxyToken = os.Getenv("ARTEX_PROXY_TOKEN")
+	if t.proxyToken == "" {
+		var secret [32]byte
+		if _, err := rand.Read(secret[:]); err != nil {
+			db.Close()
+			return nil, err
+		}
+		t.proxyToken = base64.RawURLEncoding.EncodeToString(secret[:])
+	} else if len(t.proxyToken) < 32 {
+		db.Close()
+		return nil, fmt.Errorf("ARTEX_PROXY_TOKEN must contain at least 32 bytes")
+	}
 	if err := t.initIndex(); err != nil {
 		db.Close()
 		return nil, err
@@ -204,9 +248,13 @@ func Open(dir, addr string) (*Traffic, error) {
 	p, err := mproxy.NewProxy(&mproxy.Options{
 		Addr:        addr,
 		SslInsecure: true,
-		CaRootPath:  filepath.Join(dir, "_ca"),
+		CaRootPath:  caDir,
 	})
 	if err != nil {
+		db.Close()
+		return nil, err
+	}
+	if err := os.Chmod(filepath.Join(caDir, "mitmproxy-ca.pem"), 0o600); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -219,6 +267,7 @@ func Open(dir, addr string) (*Traffic, error) {
 	// every captured request — intercepted AND transparently tunneled — is
 	// forwarded through it instead, so no host leaks the real source IP.
 	p.SetUpstreamProxy(func(*http.Request) (*url.URL, error) { return t.upstream.Load(), nil })
+	p.SetAuthProxy(t.authenticateProxy)
 	// Fail-open: MITM every host by default, EXCEPT ones a prior request proved we
 	// can't intercept without breaking (see maybePassthrough). Those are tunneled
 	// transparently so the request still reaches the target instead of being killed.
@@ -303,10 +352,29 @@ func hostOnly(hostport string) string {
 // ProxyAddr returns the address workers should set as HTTP(S)_PROXY. A bare
 // ":port" means "bind all interfaces" (legacy default), so map it to loopback.
 func (t *Traffic) ProxyAddr() string {
+	addr := t.addr
 	if strings.HasPrefix(t.addr, ":") {
-		return "http://127.0.0.1" + t.addr
+		addr = "127.0.0.1" + t.addr
 	}
-	return "http://" + t.addr
+	u := &url.URL{Scheme: "http", Host: addr}
+	if t.proxyToken != "" {
+		u.User = url.UserPassword("artex", t.proxyToken)
+	}
+	return u.String()
+}
+
+// The library calls this before HTTP routing, CONNECT handling, or destination
+// dialing. Never forward or capture the proxy's own credential upstream.
+func (t *Traffic) authenticateProxy(_ http.ResponseWriter, r *http.Request) (bool, error) {
+	value := r.Header.Get("Proxy-Authorization")
+	r.Header.Del("Proxy-Authorization")
+	encoded, ok := strings.CutPrefix(value, "Basic ")
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	want := "artex:" + t.proxyToken
+	if !ok || err != nil || t.proxyToken == "" || subtle.ConstantTimeCompare(decoded, []byte(want)) != 1 {
+		return false, fmt.Errorf("proxy authentication required")
+	}
+	return true, nil
 }
 
 // SetUpstreamProxy points every captured request at a global egress proxy
@@ -352,7 +420,7 @@ func ValidateProxyURL(raw string) (*url.URL, error) {
 // CACertPath returns the PEM CA cert clients must trust to verify HTTPS through
 // the MITM proxy (go-mitmproxy writes it here on first start).
 func (t *Traffic) CACertPath() string {
-	return filepath.Join(t.dir, "_ca", "mitmproxy-ca-cert.pem")
+	return filepath.Join(t.caDir, "mitmproxy-ca-cert.pem")
 }
 
 // Start runs the proxy (blocking); run in a goroutine.
@@ -446,13 +514,14 @@ func (t *Traffic) record(f *mproxy.Flow) {
 	id := fmt.Sprintf("%d-%04d", now.Unix(), n%10000)
 
 	ct := f.Response.Header.Get("Content-Type")
-	url := f.Request.URL.String()
-	reqHead := fmt.Sprintf("%s %s %s\n%s", method, f.Request.URL.RequestURI(), f.Request.Proto, requestHeaderLines(f.Request))
+	cleanURL := redactURL(f.Request.URL)
+	url := cleanURL.String()
+	reqHead := fmt.Sprintf("%s %s %s\n%s", method, cleanURL.RequestURI(), f.Request.Proto, requestHeaderLines(f.Request))
 	respHead := fmt.Sprintf("HTTP %d\n%s", f.Response.StatusCode, headerLines(f.Response.Header))
 	// Bodies are spilled before the transaction opens: blob writes are filesystem
 	// work and must not sit inside the SQLite write lock.
-	reqB := t.spill(f.Request.Body, f.Request.Header.Get("Content-Type"))
-	respB := t.spill(f.Response.Body, ct)
+	reqB := t.spill(redactBody(f.Request.Body, f.Request.Header.Get("Content-Type")), f.Request.Header.Get("Content-Type"))
+	respB := t.spill(redactBody(f.Response.Body, ct), ct)
 
 	tx, err := t.db.Begin()
 	if err != nil {
@@ -637,6 +706,9 @@ func nullIfEmpty(s string) any {
 func headerLines(h map[string][]string) string {
 	var b strings.Builder
 	for k, vs := range h {
+		if credentialField(k) {
+			vs = []string{"[REDACTED]"}
+		}
 		for _, v := range vs {
 			b.WriteString(k)
 			b.WriteString(": ")

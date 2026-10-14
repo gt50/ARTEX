@@ -43,8 +43,9 @@ type Server struct {
 	engine *Engine
 	ctx    context.Context
 
-	skillDir string // root directory for skill subdirectories
-	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	skillDir  string // root directory for skill subdirectories
+	jwtKey    []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	loginGate loginLimiter
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -939,7 +940,7 @@ func (s *Server) Handler() http.Handler {
 	root := http.NewServeMux()
 	root.Handle("/api/", api)
 	root.Handle("/", s.webuiHandler())
-	return root
+	return securityHeaders(root)
 }
 
 // --- handlers ---
@@ -3882,7 +3883,7 @@ func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Last-Event-ID")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(204)
 			return

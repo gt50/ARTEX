@@ -1,4 +1,5 @@
 "use client";
+import { AuthEventSource } from "@/lib/auth-event-source";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -128,7 +129,7 @@ export function useSideQuestions(parent: string | null) {
   useEffect(() => {
     if (!runningID) return;
     const version = epoch.current;
-    const stream = new EventSource(sseUrl(`/api/side-questions/${runningID}/events`));
+    const stream = new AuthEventSource(sseUrl(`/api/side-questions/${runningID}/events`));
     stream.addEventListener("snapshot", (event) => {
       if (version !== epoch.current) return;
       try {

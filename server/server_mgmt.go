@@ -871,6 +871,10 @@ func (s *Server) pgSaveMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	isNew := m.ID == 0
+	if err := validateMCPLaunch(&m); err != nil {
+		writeErr(w, http.StatusForbidden, err.Error())
+		return
+	}
 	id, err := pg.SaveMCP(&m)
 	if err != nil {
 		writeErr(w, 500, err.Error())

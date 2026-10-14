@@ -162,7 +162,7 @@ export async function http<T>(path: string, init?: RequestInit): Promise<T> {
 // to the Go backend on :8787, whose CORS is open.
 //
 // Override either default with NEXT_PUBLIC_SSE_BASE (set it to "" to force same-origin).
-// Token is appended as ?token= because SSE can't carry cookies cross-origin.
+// Streams use AuthEventSource to send credentials in the Authorization header.
 // mockReport returns a canned Markdown report for the demo.
 function mockReport(_task?: string): string {
   return `# ARTEX Penetration Test Report — Acme Corp
@@ -192,9 +192,7 @@ export function sseUrl(path: string): string {
     (process.env.NODE_ENV !== "production" && typeof window !== "undefined"
       ? `${window.location.protocol}//${window.location.hostname}:8787`
       : "");
-  const token = getToken();
-  const sep = path.includes("?") ? "&" : "?";
-  return token ? `${base}${path}${sep}token=${encodeURIComponent(token)}` : `${base}${path}`;
+  return `${base}${path}`;
 }
 
 const get = <T>(p: string) => http<T>(p);
