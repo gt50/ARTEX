@@ -67,7 +67,7 @@ ARTEX requires **PostgreSQL**. Exploration also requires an **LLM**. Configure `
 ### Option 1: One-step installer (recommended)
 
 ```bash
-git clone https://github.com/mhtsec/ARTEX.git
+git clone https://github.com/gt50/ARTEX.git
 cd ARTEX
 ./install.sh
 ```
@@ -77,10 +77,13 @@ The script checks for or installs Docker, then lets you choose between a fully D
 ### Option 2: Docker Compose
 
 ```bash
-git clone https://github.com/mhtsec/ARTEX.git
+git clone https://github.com/gt50/ARTEX.git
 cd ARTEX
+cp .env.example .env  # Set POSTGRES_PASSWORD before starting
 docker compose up -d --build
 ```
+
+Open http://127.0.0.1:8791 and complete setup. See [Local Docker deployment](DOCKER.md) for ports, persistent data, and local model-server settings.
 
 ### Option 3: Build and run locally
 

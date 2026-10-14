@@ -5,13 +5,13 @@
 #docker compose build # or docker build -t artex:local .
 #TARGETARCH is automatically injected by buildx (amd64/arm64), and QEMU is not required for Go cross-compilation;
 #The runtime layer only installs tools, and all compilation is completed during the build phase.
-#Domestic networks can cover module sources (domestic-friendly by default):
+# Override registries when a local mirror is required:
 #   --build-arg GOPROXY=https://goproxy.cn,direct
-#   --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+#   --build-arg NPM_REGISTRY=https://registry.npmjs.org
 
 ########## Phase 1: Front-end static export ##########
-FROM node:20-bookworm AS web
-ARG NPM_REGISTRY=https://registry.npmmirror.com
+FROM node:22.23.3-bookworm AS web
+ARG NPM_REGISTRY=https://registry.npmjs.org
 WORKDIR /web
 #--ignore-scripts: Skip prepare(husky) - without .git in the container, husky will fail;
 #The platform binary of Next.js/Biome adopts optionalDependencies and does not rely on life cycle scripts.
@@ -21,11 +21,12 @@ COPY web/ ./
 RUN NEXT_EXPORT=1 npm run build:static
 
 ########## Phase 2: Go backend (embedded frontend, static compilation) ##########
-FROM golang:1.26-bookworm AS gobuild
+FROM golang:1.26.3-bookworm AS gobuild
 ARG TARGETARCH
-ARG GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
+ARG GOPROXY=https://proxy.golang.org,direct
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY norma/go.mod norma/go.sum ./norma/
 RUN go mod download
 COPY . .
 #The front-end static products are copied from the web stage (.dockerignore has excluded the host dist and will not conflict)
@@ -34,16 +35,15 @@ RUN CGO_ENABLED=0 GOARCH="${TARGETARCH}" go build -tags embedui -trimpath -o /ou
 
 ########## Stage 3: Run Image (same as original: Tools + Playwright pre-installed) ##########
 FROM python:3.12-slim-bookworm
-ARG NPM_REGISTRY=https://registry.npmmirror.com
-#The global npm package of the running layer and the chromium download are also from domestic sources (also accessible to the global network)
-ENV npm_config_registry=$NPM_REGISTRY \
-    PLAYWRIGHT_DOWNLOAD_HOST=https://cdn.npmmirror.com/binaries/playwright
+ARG NPM_REGISTRY=https://registry.npmjs.org
+# Use the official npm registry and default Playwright browser download host.
+ENV npm_config_registry=$NPM_REGISTRY
 #Commonly used tools: ripgrep/curl/vim, plus a batch of recon spare parts (add or delete as needed).
-#Node installs 20.x from NodeSource: the apt nodejs that comes with bookworm is 18, and Playwright requires >=20.
+#Node installs 22.x from NodeSource: the apt nodejs that comes with bookworm is 18, and Playwright requires >=20.
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates ripgrep curl wget vim git jq unzip \
       dnsutils iputils-ping netcat-openbsd inetutils-telnet whois nmap \
-    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 #Playwright MCP and CLI (global) are pre-installed, and no npx network download is required when running.
@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 #@playwright/cli: Provide playwright-cli. After installation, use --help to verify that it is executable.
 #Then install playwright (which provides browser management). After installation, use --with-deps to preset chromium and its system dependencies.
 #In this way, the MCP/CLI in the container is available for the first time, and the browser is no longer downloaded from the Internet.
-RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@latest \
+RUN npm install -g @playwright/mcp@0.0.83 @playwright/cli@0.1.22 playwright@1.64.0 \
     && playwright-cli --help \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
@@ -62,10 +62,12 @@ COPY --from=gobuild /out/artex /app/artex
 #It is also responsible for forwarding SIGTERM to artex - docker stop only sends the signal to PID 1,
 #If it is not forwarded, artex will not be able to receive or shut down gracefully, and will be hard-killed by SIGKILL after 10 seconds.
 COPY start.sh /app/start.sh
-RUN chmod +x /app/artex /app/start.sh
+# Windows checkouts may use CRLF; the Linux entrypoint needs LF.
+RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/artex /app/start.sh \
+    && mkdir -p /app/auth && ln -s /app/auth/jwt.key /app/jwt.key
 COPY skills/ /app/skills/
-#data/(SQLite + jwt.key) persistence point
-VOLUME ["/app/data"]
+# Workspace and signing key persist separately; the key stays outside the browsable workspace.
+VOLUME ["/app/data", "/app/auth"]
 EXPOSE 8787 8788
 ENTRYPOINT ["/app/start.sh"]
 CMD ["-addr", ":8787", "-proxy", ":8788"]
