@@ -49,7 +49,7 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 
 ### Compatibility inputs
 
-18 files; 31 lines contain Chinese.
+17 files; 30 lines contain Chinese.
 
 | File | Lines |
 | --- | ---: |
@@ -66,7 +66,6 @@ The inventory below is a snapshot of Chinese-containing files after this transla
 | [server/server.go](<server/server.go>) | 4 |
 | [skills/api-recon/scripts/preload.js](<skills/api-recon/scripts/preload.js>) | 1 |
 | [web/src/components/approval-records.tsx](<web/src/components/approval-records.tsx>) | 4 |
-| [web/src/components/exploration-graph.tsx](<web/src/components/exploration-graph.tsx>) | 1 |
 | [web/src/components/transcript.tsx](<web/src/components/transcript.tsx>) | 2 |
 | [web/src/lib/company-scope.ts](<web/src/lib/company-scope.ts>) | 1 |
 | [web/src/lib/legacy-system-labels.mjs](<web/src/lib/legacy-system-labels.mjs>) | 2 |
