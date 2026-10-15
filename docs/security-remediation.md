@@ -193,7 +193,58 @@ account lookup, and an editable hydrated login field in Chromium.
 The follow-up runtime image is
 `sha256:7ebb5d5323714dc5c9726a1e27c20ebdf738f734ea0dad1df81242ddab78d1a7`.
 
-Authenticated proxy clients retain pentest destination access. Authentication
-removes the reported unauthenticated pivot; destination authorization still
-depends on the operator's pentest scope. Captures remain sensitive even after
-field redaction. The recovery archive is encrypted outside the workspace.
+## Remaining proxy hardening
+
+The follow-up removes unconditional upstream TLS bypass. Certificates are
+verified against the actual CONNECT destination, rather than client-supplied SNI.
+The interception certificate also names that destination, including IP SANs.
+There is no automatic fallback to an opaque tunnel after protocol/TLS failures.
+`ARTEX_PROXY_CA_FILE` can add a private target CA to system roots; this bundle
+must resolve outside the writable workspace. No insecure TLS switch is provided.
+
+`ARTEX_PROXY_ALLOWLIST` is an operator-controlled JSON array of exact host:port
+pairs. Blank or empty denies all destinations. Hostnames resolve once at startup,
+and the selected IP is pinned for both direct connections and remote proxy
+tunnels. The policy is checked before HTTP/CONNECT dialing and on decrypted
+HTTP requests. Rewritten requests cannot use the dependency's separate-client
+path to bypass that policy. Ports, IP literals, and hostname aliases each require
+explicit approval; wildcards and CIDR ranges are not accepted. DNS/scope changes
+require restart. The local deployment permits only `127.0.0.1:8787` and
+`host.docker.internal:8791`; other pentest targets require an operator update.
+This controls the recording proxy, not tools connecting directly without capture.
+
+The runtime portion of go-mitmproxy v1.9.2 is retained under `third_party` with its
+license and upstream tests, plus a short patch inventory. This provides the
+missing resolver hook before direct and upstream-proxy dials, target CA trust,
+destination-bound TLS names, and credential-URL removal from active error logs.
+
+CA location validation now resolves symlinks before accepting the path. Store
+directories use 0700 and new SQLite/blob files use 0600 on POSIX. The CA remains
+outside the workspace with a private 0600 PEM. Captures still contain intentional
+target evidence after recognized credential fields are redacted. They are not
+encrypted at rest, and the service must be able to read its signing keys and
+capture data. These are sensitive service-owned resources, not secrets protected
+from arbitrary execution as that same service user. The recovery archive remains
+encrypted outside the workspace.
+
+Regression coverage includes denied destinations receiving no TCP connection,
+approved HTTP and HTTPS, repeated rejection of untrusted certificates, explicit
+private-CA trust, SNI/hostname mismatch rejection, pinned destinations through an
+upstream proxy, empty/invalid policies, and private-file/CA path permissions.
+
+The final Linux application suite passed, as did the dependency's local
+connection, WebSocket, SSE, certificate/helper, and credential-log regressions.
+The hardened container build passed. A disposable runtime confirmed anonymous
+407 responses; authenticated 403 responses for unlisted Strata, PostgreSQL,
+metadata and loopback destinations; approved HTTP forwarding; trusted HTTPS;
+three consecutive untrusted-certificate rejections; verified Chromium capture;
+custom-username login; header-only SSE; and approved browser MCP discovery.
+
+The deployed image is
+`sha256:5ce7efd7893f4c30fdef1801208b83bd8ff2d364cfc68291968942b2b067092f`.
+The running environment contains the ARTEX-only allowlist above. Production
+checks passed for service health, private file modes, hardened container settings,
+named volumes, editable hydrated username field, header-only sessions, streams,
+approved MCP discovery, and authenticated Strata model listing. Stored account
+credentials were unchanged, and the operator's foreground Strata listener was
+not restarted; its anonymous metrics request still returned 401.

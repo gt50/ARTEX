@@ -27,6 +27,7 @@ ARG GOPROXY=https://proxy.golang.org,direct
 WORKDIR /src
 COPY go.mod go.sum ./
 COPY norma/go.mod norma/go.sum ./norma/
+COPY third_party/go-mitmproxy/go.mod third_party/go-mitmproxy/go.sum ./third_party/go-mitmproxy/
 RUN go mod download
 COPY . .
 #The front-end static products are copied from the web stage (.dockerignore has excluded the host dist and will not conflict)

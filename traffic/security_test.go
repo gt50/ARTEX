@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -32,6 +33,82 @@ func TestCAStaysOutsideWorkspace(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(workspace, "traffic", "_ca")); !os.IsNotExist(err) {
 		t.Fatal("CA material created in workspace")
+	}
+}
+
+func TestCARejectsSymlinkIntoWorkspace(t *testing.T) {
+	workspace := t.TempDir()
+	link := filepath.Join(t.TempDir(), "private-ca")
+	if err := os.Symlink(workspace, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	t.Setenv("ARTEX_CA_DIR", link)
+	if tr, err := Open(filepath.Join(workspace, "traffic"), "127.0.0.1:0"); err == nil {
+		tr.Close()
+		t.Fatal("CA symlink into workspace accepted")
+	}
+	if _, err := os.Stat(filepath.Join(workspace, "mitmproxy-ca.pem")); !os.IsNotExist(err) {
+		t.Fatal("private key created before containment validation")
+	}
+}
+
+func TestCaptureFilesArePrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX permission bits")
+	}
+	t.Setenv("ARTEX_CA_DIR", t.TempDir())
+	dir := filepath.Join(t.TempDir(), "traffic")
+	tr, err := Open(dir, "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tr.Close()
+	body := tr.spill([]byte(strings.Repeat("x", maxInlineBody+1)), "text/plain")
+	if body.hash == "" {
+		t.Fatal("blob was not stored")
+	}
+	blob := filepath.Join(dir, "_blobs", "sha256", body.hash[:2], body.hash+".bin")
+	for _, file := range []string{filepath.Join(dir, "_index", "index.sqlite"), blob, filepath.Join(tr.caDir, "mitmproxy-ca.pem")} {
+		st, err := os.Stat(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0600 {
+			t.Fatalf("%s permissions %o", file, st.Mode().Perm())
+		}
+	}
+	for _, folder := range []string{dir, filepath.Join(dir, "_index"), filepath.Dir(blob), tr.caDir} {
+		st, err := os.Stat(folder)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if st.Mode().Perm() != 0700 {
+			t.Fatalf("%s permissions %o", folder, st.Mode().Perm())
+		}
+	}
+}
+
+func TestTargetCABundleCannotBeWorkspaceWritable(t *testing.T) {
+	workspace := t.TempDir()
+	t.Setenv("ARTEX_CA_DIR", t.TempDir())
+	t.Setenv("ARTEX_PROXY_CA_FILE", "")
+	tr, err := Open(filepath.Join(workspace, "traffic"), "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	public, err := os.ReadFile(tr.CACertPath())
+	tr.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := filepath.Join(workspace, "target-ca.pem")
+	if err := os.WriteFile(bundle, public, 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("ARTEX_PROXY_CA_FILE", bundle)
+	if tr, err := Open(filepath.Join(workspace, "traffic"), "127.0.0.1:0"); err == nil {
+		tr.Close()
+		t.Fatal("workspace-writable trust bundle accepted")
 	}
 }
 

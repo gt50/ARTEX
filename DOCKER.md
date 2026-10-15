@@ -40,6 +40,10 @@ The proxy requires authentication for HTTP and CONNECT. Set `ARTEX_PROXY_TOKEN` 
 
 The image configures Chromium to trust that public CA in its ephemeral service-user NSS store while capture is enabled, then removes that trust when capture is disabled. Browser TLS verification remains enabled. Native installations do not alter browser trust unless explicitly opted in with `ARTEX_CHROMIUM_CA_TRUST=1` on Linux.
 
+The capture proxy also requires an operator-defined `ARTEX_PROXY_ALLOWLIST`, a JSON array of exact target host:port pairs. Blank or `[]` denies every destination, including for authenticated clients. For testing ARTEX itself, use `["127.0.0.1:8787","host.docker.internal:8791"]`. Add only authorized targets; Strata, PostgreSQL, metadata endpoints, and other local services are not implicitly allowed. Hostnames resolve at startup and the selected IP is pinned for direct connections and upstream-proxy tunnels. Restart after DNS or scope changes; a DNS load-balancer's alternate addresses require a fresh policy load. This policy covers the recording proxy, not tools making direct connections with capture disabled.
+
+Upstream TLS certificates and hostnames are always verified. Private test CAs can be supplied with `ARTEX_PROXY_CA_FILE`, a PEM certificate bundle added to system trust; mount that public bundle outside `/app/data`. There is no certificate-verification bypass or automatic fallback to an unverified tunnel after interception errors. HTTP redirects are returned to the client; following them requires the new destination to be allowed too. Raw TCP CONNECT is limited to the same approved host:port pairs.
+
 ## Daily commands
 
 ```bash

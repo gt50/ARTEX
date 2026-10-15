@@ -10,6 +10,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
@@ -21,6 +22,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -145,6 +147,7 @@ type Traffic struct {
 	seq        atomic.Int64
 	proxy      *mproxy.Proxy
 	proxyToken string
+	policy     *destinationPolicy
 	caDir      string
 	// fts reports whether the full-text index is available. False on a driver
 	// build without FTS5: recording and metadata search still work, body search
@@ -166,10 +169,7 @@ type Traffic struct {
 	// stopping() treats as "not closing".
 	closed    chan struct{}
 	closeOnce sync.Once
-	// pass is the set of hosts whose MITM interception failed for a proxy/protocol
-	// reason; connections to them are tunneled transparently (fail-open) so the
-	// request still reaches the target — unrecorded — instead of being killed.
-	pass sync.Map // hostname(string) -> struct{}
+
 	// upstream is the global egress proxy every captured request is forwarded
 	// through (nil = dial targets directly). Both the intercepted and the
 	// transparent-passthrough paths honor it (go-mitmproxy's getUpstreamConn),
@@ -179,6 +179,26 @@ type Traffic struct {
 
 // Open initializes the traffic tree, blob store and SQLite index under dir.
 func Open(dir, addr string) (*Traffic, error) {
+	var roots *x509.CertPool
+	if file := os.Getenv("ARTEX_PROXY_CA_FILE"); file != "" {
+		pem, err := os.ReadFile(file)
+		if err != nil {
+			return nil, fmt.Errorf("read proxy target CA: %w", err)
+		}
+		roots, err = x509.SystemCertPool()
+		if err != nil {
+			roots = x509.NewCertPool()
+		}
+		if !roots.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("proxy target CA file contains no certificates")
+		}
+	}
+	policy, err := loadDestinationPolicy(os.Getenv("ARTEX_PROXY_ALLOWLIST"), func(ctx context.Context, host string) ([]netip.Addr, error) {
+		return net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	})
+	if err != nil {
+		return nil, err
+	}
 	caDir := os.Getenv("ARTEX_CA_DIR")
 	if caDir == "" {
 		base, err := os.UserConfigDir()
@@ -207,7 +227,35 @@ func Open(dir, addr string) (*Traffic, error) {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			return nil, err
 		}
+		if err := os.Chmod(d, 0o700); err != nil {
+			return nil, err
+		}
 	}
+	realCA, err := filepath.EvalSymlinks(caDir)
+	if err != nil {
+		return nil, err
+	}
+	realWorkspace, err := filepath.EvalSymlinks(absoluteStore)
+	if err != nil {
+		return nil, err
+	}
+	if file := os.Getenv("ARTEX_PROXY_CA_FILE"); file != "" {
+		realFile, err := filepath.EvalSymlinks(file)
+		if err != nil {
+			return nil, err
+		}
+		realFile, err = filepath.Abs(realFile)
+		if err != nil {
+			return nil, err
+		}
+		if rel, err := filepath.Rel(realWorkspace, realFile); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("proxy target CA bundle must be outside the workspace")
+		}
+	}
+	if rel, err := filepath.Rel(realWorkspace, realCA); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("CA directory resolves inside the workspace")
+	}
+	caDir = realCA
 	if err := os.Chmod(caDir, 0o700); err != nil {
 		return nil, err
 	}
@@ -219,6 +267,16 @@ func Open(dir, addr string) (*Traffic, error) {
 	// one would silently name a different file; that path falls back to a bare
 	// DSN, where initIndex still applies the pragmas to its own connection.
 	index := filepath.Join(dir, "_index", "index.sqlite")
+	indexFile, err := os.OpenFile(index, os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := indexFile.Close(); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(index, 0o600); err != nil {
+		return nil, err
+	}
 	dsn := index
 	if !strings.ContainsRune(index, '?') {
 		dsn = "file:" + index + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)"
@@ -227,7 +285,7 @@ func Open(dir, addr string) (*Traffic, error) {
 	if err != nil {
 		return nil, err
 	}
-	t := &Traffic{dir: dir, addr: addr, db: db, closed: make(chan struct{}), caDir: caDir}
+	t := &Traffic{dir: dir, addr: addr, db: db, closed: make(chan struct{}), caDir: caDir, policy: policy}
 	t.proxyToken = os.Getenv("ARTEX_PROXY_TOKEN")
 	if t.proxyToken == "" {
 		var secret [32]byte
@@ -246,9 +304,11 @@ func Open(dir, addr string) (*Traffic, error) {
 	}
 
 	p, err := mproxy.NewProxy(&mproxy.Options{
-		Addr:        addr,
-		SslInsecure: true,
-		CaRootPath:  caDir,
+		Addr:           addr,
+		SslInsecure:    false,
+		RootCAs:        roots,
+		ResolveAddress: policy.resolve,
+		CaRootPath:     caDir,
 	})
 	if err != nil {
 		db.Close()
@@ -268,13 +328,8 @@ func Open(dir, addr string) (*Traffic, error) {
 	// forwarded through it instead, so no host leaks the real source IP.
 	p.SetUpstreamProxy(func(*http.Request) (*url.URL, error) { return t.upstream.Load(), nil })
 	p.SetAuthProxy(t.authenticateProxy)
-	// Fail-open: MITM every host by default, EXCEPT ones a prior request proved we
-	// can't intercept without breaking (see maybePassthrough). Those are tunneled
-	// transparently so the request still reaches the target instead of being killed.
-	p.SetShouldInterceptRule(func(req *http.Request) bool {
-		_, tunnel := t.pass.Load(hostOnly(req.Host))
-		return !tunnel
-	})
+	// Never downgrade certificate verification to an opaque tunnel after errors.
+	p.SetShouldInterceptRule(func(*http.Request) bool { return true })
 	p.AddAddon(&sink{t: t})
 	t.proxy = p
 	return t, nil
@@ -338,15 +393,6 @@ func (t *Traffic) initIndex() error {
 	}
 	t.fts = true
 	return nil
-}
-
-// hostOnly strips an optional :port, so passthrough keys match whether the host
-// arrives as "example.com:443" (CONNECT) or "example.com" (request URL).
-func hostOnly(hostport string) string {
-	if h, _, err := net.SplitHostPort(hostport); err == nil {
-		return h
-	}
-	return hostport
 }
 
 // ProxyAddr returns the address workers should set as HTTP(S)_PROXY. A bare
@@ -464,40 +510,6 @@ func (s *sink) Response(f *mproxy.Flow) {
 	s.t.record(f)
 }
 
-// RequestError fires when a request through an established MITM tunnel fails. If
-// the failure looks proxy/protocol-caused (h2 quirks, HEAD-with-body, protocol
-// errors) — not a plain target-unreachable error — we flag the host for
-// transparent passthrough so future requests to it succeed instead of dying.
-func (s *sink) RequestError(f *mproxy.Flow, err error) { s.t.maybePassthrough(f, err) }
-
-// maybePassthrough marks a host to be tunneled transparently on the next
-// connection, but only for errors the proxy itself caused — a target that is
-// simply down/filtered would fail without us too, and must stay MITM'd+recorded.
-func (t *Traffic) maybePassthrough(f *mproxy.Flow, err error) {
-	if err == nil || f == nil || f.Request == nil || f.Request.URL == nil || !proxyCausedErr(err) {
-		return
-	}
-	host := f.Request.URL.Hostname()
-	if host == "" {
-		return
-	}
-	if _, loaded := t.pass.LoadOrStore(host, struct{}{}); !loaded {
-		log.Printf("[traffic] MITM error with %s, changed to transparent transmission (the host will be directly connected to the target and will no longer be recorded, but the request will be as normal): %v", host, err)
-	}
-}
-
-// proxyCausedErr reports whether err indicates the interception layer (not the
-// target) is at fault — HTTP/2 handling, HEAD-with-body, or a protocol violation.
-func proxyCausedErr(err error) bool {
-	s := strings.ToLower(err.Error())
-	for _, p := range []string{"head request", "http2", "http/2", "protocol error", "protocol_error", "malformed"} {
-		if strings.Contains(s, p) {
-			return true
-		}
-	}
-	return false
-}
-
 // record persists one exchange entirely in SQLite: metadata, bodies and the
 // full-text index. Nothing is written to a per-request directory — only bodies
 // above maxInlineBody spill to the content-addressed blob store.
@@ -612,13 +624,13 @@ func (t *Traffic) spill(body []byte, contentType string) storedBody {
 	// One bucket level (256 buckets) is enough to keep any single directory small;
 	// the store only ever holds bodies above maxInlineBody, deduplicated by hash.
 	blobDir := filepath.Join(t.dir, "_blobs", "sha256", h[:2])
-	if err := os.MkdirAll(blobDir, 0o755); err != nil {
+	if err := os.MkdirAll(blobDir, 0o700); err != nil {
 		log.Printf("[traffic] Failed to create blob directory: %v", err)
 		return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
 	}
 	blobPath := filepath.Join(blobDir, h+".bin")
 	if _, err := os.Stat(blobPath); os.IsNotExist(err) {
-		if err := os.WriteFile(blobPath, body, 0o644); err != nil {
+		if err := os.WriteFile(blobPath, body, 0o600); err != nil {
 			log.Printf("[traffic] Failed to write blob %s: %v", h, err)
 			return storedBody{inline: clipBytes(body, blobPreview), index: indexText()}
 		}
