@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth";
 
 export default function SetupPage() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
@@ -47,7 +48,7 @@ export default function SetupPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.initPassword(password);
+      const { token } = await api.initPassword(username.trim(), password);
       auth.setToken(token);
       router.replace("/function/tasks");
     } catch (err) {
@@ -76,11 +77,11 @@ export default function SetupPage() {
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-2/3">
         <div className="w-full max-w-md space-y-10 py-24 lg:py-32">
           <div className="space-y-4 text-center">
-            <h2 className="text-2xl font-medium tracking-tight">{unavailable ? "Unable to Check Setup Status" : "Set Up Password"}</h2>
+            <h2 className="text-2xl font-medium tracking-tight">{unavailable ? "Unable to Check Setup Status" : "Set Up Account"}</h2>
             <p className="mx-auto max-w-xl text-muted-foreground">
               {unavailable
                 ? "The backend or database is temporarily unavailable. Setup has been disabled to avoid overwriting an existing password. Restore the service and try again."
-                : "Welcome to ARTEX. Set an account password to get started (at least 8 characters)."}
+                : "Choose a username and a password of at least 8 characters to get started."}
             </p>
           </div>
           {unavailable ? (
@@ -93,6 +94,10 @@ export default function SetupPage() {
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <div className="space-y-1.5">
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Choose a username" autoComplete="username" autoFocus required maxLength={64} />
+              </div>
+              <div className="space-y-1.5">
                 <Label htmlFor="password">New password</Label>
                 <Input
                   id="password"
@@ -100,7 +105,6 @@ export default function SetupPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 8 characters"
-                  autoFocus
                   autoComplete="new-password"
                 />
               </div>
@@ -116,8 +120,8 @@ export default function SetupPage() {
                 />
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
-              <Button type="submit" className="w-full" disabled={loading || !password || !confirm}>
-                {loading ? "Saving..." : "Set Password and Sign In"}
+              <Button type="submit" className="w-full" disabled={loading || !username.trim() || !password || !confirm}>
+                {loading ? "Saving..." : "Create Account and Sign In"}
               </Button>
             </form>
           )}

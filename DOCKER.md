@@ -25,12 +25,24 @@ For a model server running on this computer, set `DOCKER_LLM_BASE_URL` to its UR
 ## Persistent data
 
 - PostgreSQL records live in the Compose-managed `pgdata` volume.
-- ARTEX files, evidence, and SQLite traffic records live in the repository's ignored `data/` directory, mounted at `/app/data`.
-- The JWT signing key lives in the `authdata` volume at `/app/auth`, outside the browsable workspace.
-- The repository's `skills/` directory is mounted at `/app/skills`, so edits are available without rebuilding.
+- ARTEX files, evidence, and SQLite traffic records live in the Compose-managed `artexdata` volume at `/app/data`.
+- The JWT signing key and private interception CA live in `authdata` at `/app/auth`, outside the browsable workspace.
+- Bundled skills are copied into the image. The runtime filesystem, application binary, and skills are read-only; update them by rebuilding the image.
 - `.env` holds local secrets and is excluded from Git and the Docker build context.
 
-Stop containers before backing up `data/`; use `pg_dump` for database backups. `docker compose down` preserves both kinds of data. Adding `--volumes` deletes the PostgreSQL and signing-key volumes, so do not use that flag when you want to keep records.
+The app runs as UID/GID 10001 with all capabilities dropped and privilege escalation disabled. An offline one-shot initializer assigns the named volumes to that user. Temporary files and the home directory use bounded tmpfs.
+
+Existing installations using `./data` must stop the app and make an encrypted recovery backup before upgrading. Copy the old directory into an empty `artex_artexdata` volume with a trusted offline container, preserve symlinks without following them, assign UID/GID 10001, and compare file/link manifests before cutover. Retain the original until the copy is verified. The October 2026 local migration is recorded in [the remediation report](docs/security-remediation.md).
+
+Stop the app before backing up the workspace volume; use `pg_dump` for database backups. `docker compose down` preserves named volumes. Adding `--volumes` deletes records and keys, so omit that flag when keeping data.
+
+The proxy requires authentication for HTTP and CONNECT. Set `ARTEX_PROXY_TOKEN` to a random password of at least 32 bytes for external capture clients (username `artex`); blank generates a fresh password at startup. ARTEX supplies credentials to its own clients automatically. Stdio MCP launches require an exact `ARTEX_MCP_STDIO_ALLOWLIST` recipe, including an absolute executable path. See the remediation report for browser examples. The public interception certificate is `/app/auth/ca/mitmproxy-ca-cert.pem`; keep the adjacent private PEM private.
+
+The image configures Chromium to trust that public CA in its ephemeral service-user NSS store while capture is enabled, then removes that trust when capture is disabled. Browser TLS verification remains enabled. Native installations do not alter browser trust unless explicitly opted in with `ARTEX_CHROMIUM_CA_TRUST=1` on Linux.
+
+The capture proxy also requires an operator-defined `ARTEX_PROXY_ALLOWLIST`, a JSON array of exact target host:port pairs. Blank or `[]` denies every destination, including for authenticated clients. For testing ARTEX itself, use `["127.0.0.1:8787","host.docker.internal:8791"]`. Add only authorized targets; Strata, PostgreSQL, metadata endpoints, and other local services are not implicitly allowed. Hostnames resolve at startup and the selected IP is pinned for direct connections and upstream-proxy tunnels. Restart after DNS or scope changes; a DNS load-balancer's alternate addresses require a fresh policy load. This policy covers the recording proxy, not tools making direct connections with capture disabled.
+
+Upstream TLS certificates and hostnames are always verified. Private test CAs can be supplied with `ARTEX_PROXY_CA_FILE`, a PEM certificate bundle added to system trust; mount that public bundle outside `/app/data`. There is no certificate-verification bypass or automatic fallback to an unverified tunnel after interception errors. HTTP redirects are returned to the client; following them requires the new destination to be allowed too. Raw TCP CONNECT is limited to the same approved host:port pairs.
 
 ## Daily commands
 
@@ -43,4 +55,4 @@ docker compose stop
 docker compose start
 ```
 
-Both services use `restart: unless-stopped`. They resume when Docker Desktop starts unless you deliberately stopped them. This stack is local only; no Tailscale or public deployment is enabled.
+The app and database use `restart: unless-stopped`. They resume when Docker Desktop starts unless deliberately stopped. The storage initializer exits after setup. This stack is local only; no Tailscale or public deployment is enabled.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -400,7 +401,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 		if tr != nil {
 			m.traffic = tr
 			go func() {
-				log.Printf("[traffic] recording proxy on %s (set HTTP_PROXY=%s + trust _ca CA)", proxyAddr, tr.ProxyAddr())
+				log.Printf("[traffic] authenticated recording proxy on %s", proxyAddr)
 				if err := tr.Start(); err != nil {
 					log.Printf("[traffic] proxy stopped: %v", err)
 				}
@@ -472,7 +473,7 @@ func (m *Manager) SetTrafficEnabled(on bool) error {
 }
 
 // LLMRecordEnabled reports whether LLM request/response recording is on
-//(Default off; settings.llm_record). The recorder consults this per call, so the
+// (Default off; settings.llm_record). The recorder consults this per call, so the
 // toggle takes effect immediately without rebuilding agents.
 func (m *Manager) LLMRecordEnabled() bool {
 	m.mu.RLock()
@@ -493,7 +494,7 @@ func (m *Manager) SetLLMRecordEnabled(on bool) error {
 }
 
 // NoaCompactionEnabled reports whether the experimental noa context-compression
-//mechanism is on (default off; settings.noa_compaction). Read per agent run via the
+// mechanism is on (default off; settings.noa_compaction). Read per agent run via the
 // injected resolver, so a toggle takes effect on the next run without rebuild.
 func (m *Manager) NoaCompactionEnabled() bool {
 	return m.pg.GetBool(settingNoaCompaction, false)
@@ -505,7 +506,7 @@ func (m *Manager) SetNoaCompaction(on bool) error {
 	return m.pg.SetBool(settingNoaCompaction, on)
 }
 
-//LLMPoolEnabled reports whether LLM failover ("polling") is on (default off;
+// LLMPoolEnabled reports whether LLM failover ("polling") is on (default off;
 // settings.llm_pool_enabled). Read when the provider chain is built (applyLLM),
 // so a change requires a rebuild — putSettings does that.
 func (m *Manager) LLMPoolEnabled() bool {
@@ -520,8 +521,8 @@ func (m *Manager) LLMPoolEnabled() bool {
 func (m *Manager) SetLLMPoolEnabled(on bool) error { return m.pg.SetBool(settingLLMPoolOn, on) }
 
 // LLMPoolBindFallback reports whether an agent/task that is BOUND to a specific
-//profile still falls back to the chain when that profile fails (default off: binding is
-//Exclusive, failure is failure). Only meaningful while LLMPoolEnabled.
+// profile still falls back to the chain when that profile fails (default off: binding is
+// Exclusive, failure is failure). Only meaningful while LLMPoolEnabled.
 func (m *Manager) LLMPoolBindFallback() bool {
 	if m.pg == nil {
 		return false
@@ -571,7 +572,7 @@ func (m *Manager) WebSearchOpts() agent.WebSearchOpts {
 // profile can actually drive server-side search — DeepSeek exposes it only on
 // the Anthropic-format endpoint — is deliberately NOT validated here: the UI
 // states the requirement and the user decides. A profile that can't serve it
-//simply fails at search time (or at the settings page's test button), which is
+// simply fails at search time (or at the settings page's test button), which is
 // the same feedback every other backend gives for a bad key.
 func (m *Manager) deepSeekSearchCreds() (baseURL, apiKey, model string) {
 	p, err := m.pg.ActiveProfile()
@@ -656,12 +657,45 @@ func (m *Manager) syncBrowserMCPProxy() {
 
 	proxy := m.ProxyAddr()  // "" when capture off
 	cert := m.ProxyCACert() // "" when capture off
+	if err := syncChromiumCATrust(cert); err != nil {
+		log.Printf("[mcp] browser capture CA trust failed: %v", err)
+		return
+	}
 
 	args := stripProxyArgs(decodeStrSlice(srv.Args))
+	if m.traffic != nil {
+		args = stripManagedBrowserConfig(args, filepath.Join(filepath.Dir(m.traffic.CACertPath()), "browser-mcp.json"))
+	}
 	env := decodeStrMap(srv.Env)
 	delete(env, "NODE_EXTRA_CA_CERTS")
 	if proxy != "" {
-		args = append(args, "--proxy-server", proxy)
+		// Chromium does not support credentials embedded in --proxy-server.
+		// Pass Playwright's structured proxy settings in a private config instead.
+		u, err := url.Parse(proxy)
+		if err != nil {
+			log.Printf("[mcp] invalid browser proxy configuration")
+			return
+		}
+		settings := map[string]any{"server": u.Scheme + "://" + u.Host}
+		if u.User != nil {
+			settings["username"] = u.User.Username()
+			settings["password"], _ = u.User.Password()
+		}
+		configPath := filepath.Join(filepath.Dir(cert), "browser-mcp.json")
+		config, err := json.Marshal(map[string]any{"browser": map[string]any{"launchOptions": map[string]any{"proxy": settings}}})
+		if err != nil {
+			return
+		}
+		if err := os.WriteFile(configPath, config, 0o600); err != nil {
+			log.Printf("[mcp] write private browser config: %v", err)
+			return
+		}
+		if err := os.Chmod(configPath, 0o600); err != nil {
+			log.Printf("[mcp] protect browser config: %v", err)
+			return
+		}
+		args = stripManagedBrowserConfig(args, configPath)
+		args = append(args, "--config", configPath)
 		if cert != "" {
 			env["NODE_EXTRA_CA_CERTS"] = cert
 		}
@@ -673,10 +707,22 @@ func (m *Manager) syncBrowserMCPProxy() {
 		return
 	}
 	if proxy != "" {
-		log.Printf("[mcp] browser MCP has hung the capture agent %s (CA %s)", proxy, cert)
+		log.Printf("[mcp] browser MCP uses authenticated capture proxy (CA %s)", cert)
 	} else {
 		log.Printf("[mcp] browser MCP has removed capture proxy configuration")
 	}
+}
+
+func stripManagedBrowserConfig(args []string, configPath string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--config" && i+1 < len(args) && args[i+1] == configPath {
+			i++
+			continue
+		}
+		out = append(out, args[i])
+	}
+	return out
 }
 
 // stripProxyArgs removes any --proxy-server/--proxy-bypass flags (both "--flag val"
@@ -877,7 +923,7 @@ func (m *Manager) UpdateTaskMetadata(taskID string, patch pgdb.TaskPatch) (*Task
 }
 
 // CreateTask creates a task + its exploration and makes it active.
-//timeoutSeconds is the task-level wall-clock budget (0 = no time limit).
+// timeoutSeconds is the task-level wall-clock budget (0 = no time limit).
 func (m *Manager) CreateTask(description, goal string, llmProfileID *int64, timeoutSeconds, planHeartbeatSeconds int) (*Task, error) {
 	var ids []int64
 	if llmProfileID != nil {
@@ -1046,7 +1092,7 @@ func (m *Manager) DeleteCompanyWithAssets(id int64, deleteAssets bool) (int64, e
 
 // ReplaceTaskLLMProfiles resets a task's ordered provider chain and mirrors the
 // committed state onto the live task handle. Terminal tasks are editable too —
-//their main Agent conversation keeps running on the chain after the task finishes.
+// their main Agent conversation keeps running on the chain after the task finishes.
 func (m *Manager) ReplaceTaskLLMProfiles(id string, profileIDs []int64, activeProfileID int64) (int64, error) {
 	n, err := strconv.ParseInt(id, 10, 64)
 	if err != nil {
@@ -1341,7 +1387,7 @@ func (m *Manager) TaskStatus(id string) string {
 }
 
 // StampTaskFirstRun stamps first_run_at + deadline_at on the first real run (idempotent
-//in DB) and mirrors deadline_at on the live handle. Returns the deadline unix (0 = no limit).
+// in DB) and mirrors deadline_at on the live handle. Returns the deadline unix (0 = no limit).
 func (m *Manager) StampTaskFirstRun(id string) (int64, error) {
 	m.taskStateMu.Lock()
 	defer m.taskStateMu.Unlock()
@@ -1779,8 +1825,8 @@ func (t *Task) NotifyFinding(intentID int64, summary string) {
 
 // NotifyGoal records that one OR MORE goals were added in a single set_goals call —
 // by the human via the main agent — then wakes the planner, so the next round spells
-//out "People added N new goals:..." instead of the planner having to spot new open goals in
-//the overview. One call → one trigger event (one batch of set_goals is counted as one, and the screen is not refreshed one by one).
+// out "People added N new goals:..." instead of the planner having to spot new open goals in
+// the overview. One call → one trigger event (one batch of set_goals is counted as one, and the screen is not refreshed one by one).
 // The event survives an early-returning terminal round (drain happens after the gate),
 // so a set_goals that revives a done task still surfaces it once the task is running.
 func (t *Task) NotifyGoal(texts []string) {
@@ -1795,7 +1841,7 @@ func (t *Task) NotifyGoal(texts []string) {
 
 // NotifyHint records that one OR MORE hints were added in a single add_hint call —
 // by the human via the main agent, or by cross-task orchestration — then wakes the
-//planner, so the next round is told "People have added N strategic tips:..." and looks at them
+// planner, so the next round is told "People have added N strategic tips:..." and looks at them
 // directly instead of having to spot the new hint folded into the graph overview.
 // One call → one trigger event (a batched add_hint counts as one, not one per hint).
 func (t *Task) NotifyHint(texts []string) {
@@ -1808,7 +1854,7 @@ func (t *Task) NotifyHint(texts []string) {
 	t.Notify()
 }
 
-//NotifyGoalDeleted records that the human deleted a goal (via Overview Goal Management), then
+// NotifyGoalDeleted records that the human deleted a goal (via Overview Goal Management), then
 // wakes the planner so the next round spells out which goal was removed. The event
 // survives an early-returning terminal round (drain happens after the gate).
 func (t *Task) NotifyGoalDeleted(text string) {
@@ -1822,7 +1868,7 @@ func (t *Task) NotifyGoalDeleted(text string) {
 	t.Notify()
 }
 
-//NotifyGoalEdited records that the human edited a goal (via Overview's goal management), then wakes
+// NotifyGoalEdited records that the human edited a goal (via Overview's goal management), then wakes
 // the planner so the next round spells out the old→new change. The event survives an
 // early-returning terminal round (drain happens after the gate).
 func (t *Task) NotifyGoalEdited(oldText, newText string) {
@@ -1836,7 +1882,7 @@ func (t *Task) NotifyGoalEdited(oldText, newText string) {
 	t.Notify()
 }
 
-//NotifyCancelled records that the human deleted intentID (reason = deletion reason), then
+// NotifyCancelled records that the human deleted intentID (reason = deletion reason), then
 // wakes the planner so the next round spells out which intent was removed and why.
 // summary is the intent's text captured before deletion — needed for hard delete,
 // where the node is gone by the time the planner reads the trigger. Applies to both

@@ -27,6 +27,7 @@ web/next-env.d.ts
 # Local documentation (keep the translated evidence guide)
 /docs/*
 !/docs/Finding-Traffic-Evidence.md
+!/docs/security-remediation.md
 
 # os
 .DS_Store

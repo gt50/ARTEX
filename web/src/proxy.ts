@@ -1,26 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const AUTH_PAGES = ["/login", "/setup"];
-
 export function proxy(request: NextRequest) {
-  // Mock demo has no real login, so allow every page (the client auth guard does the same).
-  if (process.env.NEXT_PUBLIC_MOCK === "1") return NextResponse.next();
-
-  const { pathname } = request.nextUrl;
-  const token = request.cookies.get("artex_token")?.value;
-  const isAuthPage = AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-
-  // Redirect unauthenticated users to the login page.
-  if (!token && !isAuthPage) {
-    return NextResponse.redirect(new URL("/login", request.url));
-  }
-
-  // Redirect authenticated users away from the login and setup pages.
-  if (token && isAuthPage) {
-    return NextResponse.redirect(new URL("/function/tasks", request.url));
-  }
-
+  // Authentication redirects live in the client guard. API credentials are header
+  // only and no longer mirrored into a JavaScript-readable routing cookie.
+  void request;
   return NextResponse.next();
 }
 

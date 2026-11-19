@@ -22,3 +22,10 @@ dist
 *.exe
 *.log
 jwt.key
+# Penetration-test payloads are local evidence, never runtime skills.
+skills/i224a
+skills/i224b
+skills/i224c
+skills/i224d
+skills/i272_escaped.py
+skills/i272slip3

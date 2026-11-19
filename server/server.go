@@ -43,8 +43,9 @@ type Server struct {
 	engine *Engine
 	ctx    context.Context
 
-	skillDir string // root directory for skill subdirectories
-	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	skillDir  string // root directory for skill subdirectories
+	jwtKey    []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	loginGate loginLimiter
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -529,7 +530,7 @@ func (s *Server) effectiveProfileForAgent(agentKey string, pinID *int64) *int64 
 // binding or this conversation's chosen profile first, the global active config
 // only as a fallback. Both the send precheck and the background runner MUST use
 // this — resolving differently in the two paths is how a conversation that had
-//picked a valid profile still got rejected with "LLM not configured" when no global
+// picked a valid profile still got rejected with "LLM not configured" when no global
 // config was active.
 func (s *Server) resolveChatAgent(c *db.Conversation) *agent.ChatAgent {
 	ca := s.chatAgentRef()
@@ -656,6 +657,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
+	mux.HandleFunc("GET /api/auth/account", s.authAccount)
 
 	mux.HandleFunc("GET /api/health", s.health)
 	mux.HandleFunc("GET /api/stats", s.stats)
@@ -939,7 +941,7 @@ func (s *Server) Handler() http.Handler {
 	root := http.NewServeMux()
 	root.Handle("/api/", api)
 	root.Handle("/", s.webuiHandler())
-	return root
+	return securityHeaders(root)
 }
 
 // --- handlers ---
@@ -1178,9 +1180,9 @@ func (s *Server) controlIntent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, result)
 }
 
-//rerunIntent reruns an unsuccessful intention (blocked/exhausted/stopped): put it back to open,worker
-//It will be claimed again and run again (the fact/finding/asset that has been written back to the map will be retained); if the task is finalized/suspended, it will be resurrected.
-//Used for "Click the errored work to continue running" - you can retry with one click after the network/LLM jitter causes blocked.
+// rerunIntent reruns an unsuccessful intention (blocked/exhausted/stopped): put it back to open,worker
+// It will be claimed again and run again (the fact/finding/asset that has been written back to the map will be retained); if the task is finalized/suspended, it will be resurrected.
+// Used for "Click the errored work to continue running" - you can retry with one click after the network/LLM jitter causes blocked.
 func restoreRerunIntent(t *Task, before *db.Node) error {
 	if t == nil || before == nil {
 		return fmt.Errorf("missing intent rollback snapshot")
@@ -1233,8 +1235,8 @@ func (s *Server) rerunIntent(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"id": t.ID, "reopened": iid, "queued": queued})
 }
 
-//rerunBlocked reruns this task in batches with all blocked intentions (suitable for one network/LLM disconnection that results in multiple blocks)
-//Retry all with one click), return to open and resurrect the task; return the number of reopened tasks.
+// rerunBlocked reruns this task in batches with all blocked intentions (suitable for one network/LLM disconnection that results in multiple blocks)
+// Retry all with one click), return to open and resurrect the task; return the number of reopened tasks.
 func (s *Server) rerunBlocked(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -1479,7 +1481,7 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		req.TimeoutSeconds = 0
 	}
 	if len(req.SourceTaskIDs) > db.MaxTaskSourceCount {
-			writeErr(w, 400, fmt.Sprintf("select no more than %d linked tasks", db.MaxTaskSourceCount))
+		writeErr(w, 400, fmt.Sprintf("select no more than %d linked tasks", db.MaxTaskSourceCount))
 		return
 	}
 	sourceIDs := make([]int64, 0, len(req.SourceTaskIDs))
@@ -1707,7 +1709,7 @@ func (s *Server) seed(t *Task, text string) {
 	//Consumed to bypass Run's gating → The seed task still triggers the first round by mistake.
 }
 
-//seedFirstIntent writes ONE open intent (summary = description + target) into the task's
+// seedFirstIntent writes ONE open intent (summary = description + target) into the task's
 // frontier at creation, so a worker can claim and run it immediately without first
 // waiting a planner round. Mirrors a planner top-level intent: it links from the
 // origin fact (RelDerivedFrom) so it still traces back to a fact node. Best-effort —
@@ -1765,7 +1767,7 @@ func (s *Server) taskCoverage(w http.ResponseWriter, r *http.Request) {
 }
 
 // taskCoverageGraph returns the force-directed asset coverage graph for a task:
-//all in-scope assets (each type) + the root domain/company node used to connect, each carrying tested/in_scope.
+// all in-scope assets (each type) + the root domain/company node used to connect, each carrying tested/in_scope.
 func (s *Server) taskCoverageGraph(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -1787,7 +1789,7 @@ func (s *Server) taskCoverageGraph(w http.ResponseWriter, r *http.Request) {
 }
 
 // taskAssetRefs returns the intents / facts / findings in this task anchored to a
-//given asset id — powers the coverage-graph node drawer's "Associated Intent/Associated Fact".
+// given asset id — powers the coverage-graph node drawer's "Associated Intent/Associated Fact".
 func (s *Server) taskAssetRefs(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -2045,7 +2047,7 @@ func (s *Server) resolveAssetIDs(ids []int64) map[int64]*db.Asset {
 }
 
 // findingStats serves the whole-table aggregates (stat cards + vuln-class filter)
-//for the paginated found page.
+// for the paginated found page.
 func (s *Server) findingStats(w http.ResponseWriter, r *http.Request) {
 	st, err := s.m.pg.FindingStats()
 	if err != nil {
@@ -2091,13 +2093,15 @@ func (s *Server) getFinding(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, dto)
 }
 
-//findingsExport exports the vulnerabilities of the discovery page.
+// findingsExport exports the vulnerabilities of the discovery page.
 //
-//scope = filtered (inherit page filter) | all (all) | selected (checked ids)
-//format = md-single (integrate one .md) | md-zip (one vulnerability, one .md, package zip)
-//	          | csv | json
-//ids = comma separated finding ids (required when scope=selected)
-//The filter parameters severity/status/vulnclass/task_id/q/sort are consistent with the list interface (scope=filtered is used).
+// scope = filtered (inherit page filter) | all (all) | selected (checked ids)
+// format = md-single (integrate one .md) | md-zip (one vulnerability, one .md, package zip)
+//
+//	| csv | json
+//
+// ids = comma separated finding ids (required when scope=selected)
+// The filter parameters severity/status/vulnclass/task_id/q/sort are consistent with the list interface (scope=filtered is used).
 func (s *Server) findingsExport(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	scope := q.Get("scope")
@@ -2529,7 +2533,7 @@ func (s *Server) explorationGraph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"nodes": taskNodeDTOs(nodes), "edges": edgeDTOs(edges)})
 }
 
-//explorationNodes serves the bulletin board: this task's own exploration nodes as a
+// explorationNodes serves the bulletin board: this task's own exploration nodes as a
 // paged time series (newest first unless ?order=asc), filterable by kind/state
 // and a payload substring. Inherited nodes are deliberately out of scope — the
 // board reports what this task is doing right now, and paging across the source
@@ -2605,7 +2609,7 @@ func (s *Server) explorationNodes(w http.ResponseWriter, r *http.Request) {
 
 // nodeAnchoredAssets resolves the exploration_anchors of the given nodes into
 // display-ready asset labels, keyed by node id. Anchors are provenance decoration
-//for the announcement board — a failure here must not cost the caller its page, so errors are
+// for the announcement board — a failure here must not cost the caller its page, so errors are
 // logged and degrade to "no assets".
 func (s *Server) nodeAnchoredAssets(t *Task, nodeIDs []int64) map[string][]FindingAssetDTO {
 	out := map[string][]FindingAssetDTO{}
@@ -3321,14 +3325,14 @@ func (s *Server) settingsPayload() map[string]any {
 	}
 }
 
-//notifyPublicBaseURL The external address used to read the push back link.
+// notifyPublicBaseURL The external address used to read the push back link.
 func notifyPublicBaseURL(pg *db.DB) string {
 	v, _, _ := pg.GetSetting(settingNotifyPublicBaseURL)
 	return v
 }
 
-//notifyDigestIntervalMin Read summary period (minutes), falls back to the default value when illegal or not configured.
-//Echo the default value instead of the empty string so that the UI can fill in the current effective value into the input box.
+// notifyDigestIntervalMin Read summary period (minutes), falls back to the default value when illegal or not configured.
+// Echo the default value instead of the empty string so that the UI can fill in the current effective value into the input box.
 func notifyDigestIntervalMin(pg *db.DB) int {
 	v, ok, _ := pg.GetSetting(settingNotifyDigestMinutes)
 	if !ok {
@@ -3426,7 +3430,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 		//Leaving the trailing slash produces a double-slash path like "//function/...".
 		base := trimTrailingSlash(strings.TrimSpace(*req.NotifyBaseURL))
 		if base != "" && !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
-		writeErr(w, 400, "public base URL must start with http:// or https://")
+			writeErr(w, 400, "public base URL must start with http:// or https://")
 			return
 		}
 		if err := s.m.pg.SetSetting(settingNotifyPublicBaseURL, base); err != nil {
@@ -3437,7 +3441,7 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) {
 	if req.NotifyDigestMins != nil {
 		//The lower limit is 1 minute: a shorter period is equivalent to real-time push, in which case the channel should be directly changed to realtime mode.
 		if *req.NotifyDigestMins < 1 || *req.NotifyDigestMins > 24*60 {
-		writeErr(w, 400, "digest interval must be between 1 and 1440 minutes")
+			writeErr(w, 400, "digest interval must be between 1 and 1440 minutes")
 			return
 		}
 		if err := s.m.pg.SetSetting(settingNotifyDigestMinutes, strconv.Itoa(*req.NotifyDigestMins)); err != nil {
@@ -3616,7 +3620,7 @@ func (s *Server) testWebSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 // mainSessions lists the task's main-agent conversation segments (newest-first) and
-//the current one. The frontend renders these as switchable sessions under main Agent.
+// the current one. The frontend renders these as switchable sessions under main Agent.
 func (s *Server) mainSessions(w http.ResponseWriter, r *http.Request) {
 	t := s.m.ResolveTask(r.URL.Query().Get("task"))
 	if t == nil {
@@ -3813,7 +3817,7 @@ func (s *Server) stopChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"status": "stopping"})
 }
 
-//fallbackChat is the no-LLM human-steering handler: simple command + situation summary.
+// fallbackChat is the no-LLM human-steering handler: simple command + situation summary.
 func (s *Server) fallbackChat(t *Task, msg string) string {
 	m := strings.TrimSpace(msg)
 	lower := strings.ToLower(m)
@@ -3882,7 +3886,7 @@ func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Last-Event-ID")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(204)
 			return
