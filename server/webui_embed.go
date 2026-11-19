@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 )
 
 // webuiDist holds the statically-exported frontend (built with
@@ -17,6 +18,8 @@ import (
 //
 //go:embed all:webui/dist
 var webuiDist embed.FS
+
+var webuiPolicies sync.Map
 
 // webuiHandler serves the embedded SPA. Public (no JWT) — auth is enforced
 // client-side and on /api. Serves the exported per-route index.html files and
@@ -40,7 +43,7 @@ func (s *Server) webuiHandler() http.Handler {
 				return
 			}
 		}
-		http.ServeFileFS(w, r, root, "index.html")
+		serveFileIfExists(w, r, root, "index.html")
 	})
 }
 
@@ -54,6 +57,19 @@ func serveFileIfExists(w http.ResponseWriter, r *http.Request, fsys fs.FS, name 
 	_ = f.Close()
 	if statErr != nil || st.IsDir() {
 		return false
+	}
+	if strings.HasSuffix(name, ".html") {
+		policy, ok := webuiPolicies.Load(name)
+		if !ok {
+			document, err := fs.ReadFile(fsys, name)
+			if err != nil {
+				http.Error(w, "Unable to serve document", 500)
+				return true
+			}
+			policy = cspForHTML(document)
+			webuiPolicies.Store(name, policy)
+		}
+		w.Header().Set("Content-Security-Policy", policy.(string))
 	}
 	http.ServeFileFS(w, r, fsys, name)
 	return true

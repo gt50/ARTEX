@@ -2,7 +2,8 @@
 # =============================================================================
 # ARTEX administrator password reset script
 #
-# The login username is fixed as ARTEX. The password is stored as a bcrypt hash in the
+# The login username is configured in Account settings (ARTEX for legacy accounts).
+# Resetting the password preserves that username. The password is stored as a bcrypt hash in the
 # auth.password_hash key in the database settings table. This script connects to the database,
 # generates a bcrypt hash with pgcrypto, and writes it to that key, matching backend validation
 # (golang.org/x/crypto/bcrypt).
@@ -126,7 +127,7 @@ info "Deployment mode: $MODE"
 
 # ---- Collect the new password ---------------------------------------------
 if [[ -z "$NEWPASS" ]]; then
-  read -r -s -p "New password (username is fixed as ARTEX): " NEWPASS; echo >&2
+  read -r -s -p "New password (your username stays the same): " NEWPASS; echo >&2
   [[ -n "$NEWPASS" ]] || die "Password cannot be empty"
   read -r -s -p "Enter it again to confirm: " NEWPASS2; echo >&2
   [[ "$NEWPASS" == "$NEWPASS2" ]] || die "Passwords do not match"
@@ -236,4 +237,4 @@ else
 fi
 
 unset ARTEX_RESET_NEWPASS
-echo "✓ ARTEX administrator password reset. Sign in with username ARTEX and the new password (no service restart required)."
+echo "✓ ARTEX administrator password reset. Sign in with your configured username (ARTEX for legacy accounts) and the new password (no service restart required)."

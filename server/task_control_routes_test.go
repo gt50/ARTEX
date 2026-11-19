@@ -16,7 +16,8 @@ func TestWorkerControlRoutes(t *testing.T) {
 	defer m.Close()
 
 	td := t.TempDir()
-	s := New(context.Background(), m, td, td, td)
+	s, stopServer := newTestServer(context.Background(), m, td, td, td)
+	defer stopServer()
 	h := s.Handler()
 	token, err := signJWT(s.jwtKey)
 	if err != nil {

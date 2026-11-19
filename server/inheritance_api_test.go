@@ -52,7 +52,14 @@ func TestInheritedActivityDetailAndRelationDeletion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := New(context.Background(), m, t.TempDir(), t.TempDir(), t.TempDir())
+	ctx, cancel := context.WithCancel(context.Background())
+	s := New(ctx, m, t.TempDir(), t.TempDir(), t.TempDir())
+	defer func() {
+		cancel()
+		for _, task := range m.List() {
+			s.engine.StopTask(task.ID)
+		}
+	}()
 	token, err := signJWT(s.jwtKey)
 	if err != nil {
 		t.Fatal(err)

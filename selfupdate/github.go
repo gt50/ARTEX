@@ -12,7 +12,7 @@ import (
 
 //Repo is the release source. Hard-coded rather than made into configuration items: the update source can be allocated to anyone who can change the configuration.
 //The remote code execution channel is not an opening for a penetration testing platform.
-const Repo = "Autumn-27/artex"
+const Repo = "gt50/ARTEX"
 
 //latestURL is GitHub's "latest official version" interface. It automatically skips prerelease and draft.
 const latestURL = "https://api.github.com/repos/" + Repo + "/releases/latest"

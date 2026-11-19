@@ -2,6 +2,48 @@ package db
 
 import "database/sql"
 
+// InitAccount stores both credentials atomically. Only the first setup succeeds.
+func (d *DB) InitAccount(username, hash string) (bool, error) {
+	tx, err := d.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`INSERT INTO settings(key, value) VALUES ('auth.password_hash', $1) ON CONFLICT (key) DO NOTHING`, hash)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil || n == 0 {
+		return false, err
+	}
+	if _, err = tx.Exec(`INSERT INTO settings(key, value) VALUES ('auth.username', $1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`, username); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
+// UpdateAccount commits credentials together, provided the verified password is still current.
+func (d *DB) UpdateAccount(username, expectedHash, hash string) (bool, error) {
+	tx, err := d.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec(`UPDATE settings SET value=$1, updated_at=now() WHERE key='auth.password_hash' AND value=$2`, hash, expectedHash)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	if err != nil || n == 0 {
+		return false, err
+	}
+	if _, err = tx.Exec(`INSERT INTO settings(key, value) VALUES ('auth.username', $1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`, username); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
 // Settings is a tiny key-value store for global app config the UI toggles at
 // runtime (e.g. traffic_capture). Missing keys fall back to caller defaults.
 

@@ -24,6 +24,9 @@ type mcpClient interface {
 func connectMCP(ctx context.Context, m *db.MCPServer) (mcpClient, error) {
 	switch m.Transport {
 	case "stdio":
+		if err := validateMCPLaunch(m); err != nil {
+			return nil, err
+		}
 		if m.Command == "" {
 			return nil, fmt.Errorf("stdio transport is missing a command")
 		}

@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { auth } from "@/lib/auth";
 
 export function ChangePasswordDialog({
   open,
@@ -25,6 +26,9 @@ export function ChangePasswordDialog({
   readonly onOpenChange: (open: boolean) => void;
 }) {
   const [oldPassword, setOldPassword] = React.useState("");
+  const [username, setUsername] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
+  const [loadError, setLoadError] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [saving, setSaving] = React.useState(false);
@@ -38,10 +42,24 @@ export function ChangePasswordDialog({
     }
   }, [open]);
 
+  React.useEffect(() => {
+    if (!open) return;
+    let active = true;
+    setLoading(true);
+    setLoadError("");
+    api.account().then((account) => {
+      if (active) setUsername(account.username);
+    }).catch((err) => {
+      if (active) setLoadError((err as Error).message);
+    }).finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [open]);
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!oldPassword || !newPassword) {
-      toast.error("Enter your current and new passwords");
+    if (loading || loadError) return;
+    if (!oldPassword || !username.trim()) {
+      toast.error("Enter your username and current password");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -50,12 +68,14 @@ export function ChangePasswordDialog({
     }
     setSaving(true);
     api
-      .changePassword(oldPassword, newPassword)
-      .then(() => {
-        toast.success("Password changed");
+      .changePassword(oldPassword, newPassword, username.trim())
+      .then(({ token }) => {
+        auth.setToken(token);
+        toast.success("Account updated");
         onOpenChange(false);
+        window.location.reload();
       })
-      .catch((err) => toast.error(`Failed to change password: ${(err as Error).message}`))
+      .catch((err) => toast.error(`Failed to update account: ${(err as Error).message}`))
       .finally(() => setSaving(false));
   }
 
@@ -64,13 +84,18 @@ export function ChangePasswordDialog({
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Change password</DialogTitle>
+            <DialogTitle>Account settings</DialogTitle>
             <DialogDescription>
-              The username is fixed as <b>ARTEX</b>. Enter your current password to verify your identity.
-              Existing sign-in tokens remain valid until they expire.
+              Change your username or password. Enter your current password to save changes.
+              Leave the new password blank to keep your password. Existing sessions remain signed in.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">
+            {loadError && <p role="alert" className="text-sm text-destructive">Unable to load account: {loadError}</p>}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="cp-username">Username</Label>
+              <Input id="cp-username" name="username" autoComplete="username" value={username} disabled={saving || loading} onChange={(e) => setUsername(e.target.value)} required maxLength={64} />
+            </div>
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cp-old">Current password</Label>
               <Input
@@ -109,8 +134,8 @@ export function ChangePasswordDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? "Changing..." : "Change password"}
+            <Button type="submit" disabled={saving || loading || !!loadError || !username.trim() || !oldPassword}>
+              {saving ? "Saving..." : "Save changes"}
             </Button>
           </DialogFooter>
         </form>

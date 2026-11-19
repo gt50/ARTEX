@@ -1,6 +1,18 @@
 # Local source deployment, following RentLens and Dividend Orchard.
 # docker compose up -d --build    http://127.0.0.1:8791
 services:
+  storage-init:
+    image: busybox:1.37.0
+    user: "0:0"
+    network_mode: none
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    command: ["sh", "-c", "chown -R 10001:10001 /data /auth && chmod 700 /data /auth"]
+    volumes:
+      - artexdata:/data
+      - authdata:/auth
+    restart: "no"
   postgres:
     image: postgres:16-alpine
     environment:
@@ -24,6 +36,14 @@ services:
       context: .
       dockerfile: Dockerfile
     pull_policy: build
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1g
+      - /home/artex:rw,nosuid,nodev,uid=10001,gid=10001,size=512m
     env_file:
       - path: .env
         required: false
@@ -37,10 +57,11 @@ services:
       - "127.0.0.1:${ARTEX_PORT:-8791}:8787"
       - "127.0.0.1:${ARTEX_PROXY_PORT:-8788}:8788"
     volumes:
-      - ./data:/app/data
+      - artexdata:/app/data
       - authdata:/app/auth
-      - ./skills:/app/skills
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     healthcheck:
@@ -53,5 +74,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  artexdata:
   pgdata:
   authdata:

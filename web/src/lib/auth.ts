@@ -1,5 +1,4 @@
 const TOKEN_KEY = "artex_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; //7 days (seconds)
 
 export interface CurrentUser {
   id: string;
@@ -19,8 +18,8 @@ export const auth = {
 
   setToken(token: string): void {
     localStorage.setItem(TOKEN_KEY, token);
-    //Write cookies synchronously for Next.js middleware server to read
-    document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+    // Remove cookies from older clients; the API only accepts header credentials.
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
   clearToken(): void {
@@ -36,7 +35,8 @@ export const auth = {
       const parts = token.split(".");
       if (parts.length !== 3) return null;
       // base64url → base64
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+      const bytes = Uint8Array.from(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")), (ch) => ch.charCodeAt(0));
+      const payload = JSON.parse(new TextDecoder().decode(bytes));
       const username: string = payload.sub ?? "ARTEX";
       return { id: "1", name: username, username, email: "", avatar: "", role: "operator" };
     } catch {

@@ -1,5 +1,7 @@
 module github.com/Autumn-27/artex
 
+replace github.com/lqqyt2423/go-mitmproxy => ./third_party/go-mitmproxy
+
 // Upstream github.com/Autumn-27/norma went closed-source and is no
 // longer publicly accessible; v0.4.3 was restored from the Go module
 // proxy into ./norma.

@@ -20,7 +20,8 @@ func TestTaskTemplateHTTPCRUD(t *testing.T) {
 		t.Skipf("postgres unavailable (%v) — skipping", err)
 	}
 	defer m.Close()
-	s := New(context.Background(), m, t.TempDir(), t.TempDir(), t.TempDir())
+	s, stopServer := newTestServer(context.Background(), m, t.TempDir(), t.TempDir(), t.TempDir())
+	defer stopServer()
 	h := s.Handler()
 	token, err := signJWT(s.jwtKey)
 	if err != nil {
@@ -90,7 +91,8 @@ func TestConversationPatchReturnsPinState(t *testing.T) {
 		t.Skipf("postgres unavailable (%v) — skipping", err)
 	}
 	defer m.Close()
-	s := New(context.Background(), m, t.TempDir(), t.TempDir(), t.TempDir())
+	s, stopServer := newTestServer(context.Background(), m, t.TempDir(), t.TempDir(), t.TempDir())
+	defer stopServer()
 	conversation, err := m.pg.CreateConversation("mainagent", "pin through http", nil)
 	if err != nil {
 		t.Fatal(err)
