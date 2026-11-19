@@ -10,7 +10,7 @@
 #   --build-arg NPM_REGISTRY=https://registry.npmjs.org
 
 ########## Phase 1: Front-end static export ##########
-FROM node:22.23.3-bookworm AS web
+FROM node:22.23.5-bookworm AS web
 ARG NPM_REGISTRY=https://registry.npmjs.org
 WORKDIR /web
 #--ignore-scripts: Skip prepare(husky) - without .git in the container, husky will fail;
@@ -21,7 +21,7 @@ COPY web/ ./
 RUN NEXT_EXPORT=1 npm run build:static
 
 ########## Phase 2: Go backend (embedded frontend, static compilation) ##########
-FROM golang:1.26.3-bookworm AS gobuild
+FROM golang:1.26.11-bookworm AS gobuild
 ARG TARGETARCH
 ARG GOPROXY=https://proxy.golang.org,direct
 WORKDIR /src
